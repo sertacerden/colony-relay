@@ -1,0 +1,29 @@
+{
+  "name": "colony-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n SERVER,CLIENT \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node --env-file-if-exists=.env --watch server/src/index.js",
+    "dev:client": "vite --config client/vite.config.js",
+    "build": "vite build --config client/vite.config.js",
+    "start": "node --env-file-if-exists=.env server/src/index.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1127.0",
+    "@aws-sdk/lib-dynamodb": "3.1127.0",
+    "@dimforge/rapier3d-compat": "0.20.0",
+    "socket.io": "4.8.3",
+    "socket.io-client": "4.8.3",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.1",
+    "vite": "8.2.2"
+  }
+}
