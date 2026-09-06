@@ -15,14 +15,14 @@ export function panelTextures() {
   for(let i=0;i<30;i++){c.fillStyle=`rgba(60,75,85,${.03+(i%4)*.015})`;c.fillRect((i*73)%240,(i*37)%240,15+i%12,1);}
   const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;
   const bump=new THREE.CanvasTexture(canvas);
-  return {map,bumpMap:bump,bumpScale:.018,roughness:.72,metalness:.55};
+  return {map,bumpMap:bump,bumpScale:.018,roughness:.72,metalness:.12};
 }
 export class Graphics {
   constructor(view,sun) {
     this.view=view;this.sun=sun;this.slow=0;this.shadowTime=0;
     const generator=new THREE.PMREMGenerator(view.renderer), room=new RoomEnvironment();
     this.environment=generator.fromScene(room,.04);view.scene.environment=this.environment.texture;
-    room.dispose();generator.dispose();view.scene.environmentIntensity=.45;
+    room.dispose();generator.dispose();view.scene.environmentIntensity=.25;
     sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0003;sun.shadow.normalBias=.045;
     Object.assign(sun.shadow.camera,{left:-23,right:23,top:23,bottom:-23,near:1,far:120});
     view.scene.add(sun.target);view.renderer.shadowMap.type=THREE.PCFShadowMap;view.renderer.shadowMap.autoUpdate=false;
@@ -46,7 +46,7 @@ export class Graphics {
         this.ao=new SSAOPass(scene,camera,1,1,8);this.ao.kernelRadius=4;this.ao.minDistance=.005;this.ao.maxDistance=.12;
         this.composer.addPass(this.ao);
       }
-      this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(1,1),.25,.3,1.1));
+      this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(1,1),.035,.15,2.5));
       this.composer.addPass(new OutputPass());
     }
     this.resize();

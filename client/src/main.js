@@ -1,5 +1,7 @@
 import './style.css';
 import * as THREE from 'three';
+import { SKINS, EMOTE_LABELS, MOTION_LABELS, PRANK_MESSAGES } from '../../shared/characters.js';
+import { ExpressiveUI } from './expressive-ui.js';
 import { DT, MOVE } from '../../shared/config.js';
 import { buildLevel, SECTORS } from '../../shared/levels.js';
 import { initPhysics, PhysicsScene, CharacterMotor } from '../../shared/simulation.js';
@@ -12,14 +14,14 @@ import { GameAudioEvents } from './audio-events.js';
 
 const $ = id => document.getElementById(id);
 const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 2.4;
-const colors = ['#65e9f3', '#c3fa7a', '#f4a36d', '#b39afa', '#f68bac', '#f8dc81'];
+let expressive, selectedSkin='courier';
 let view, scene, motor, level, rig, input, net, snapshot, snapshotAt = 0;
 let playerId = null, roomEpoch = null, seq = 0, pending = [], connectedOnce = false;
 let simulationTime = 0, simulationMotion = 0;
 function advancePhysics(command) {
   simulationTime += DT;
   if(snapshot?.puzzle.open || snapshot?.puzzle.latched) simulationMotion += DT;
-  scene.prepare(simulationTime,{...snapshot?.puzzle,motionTime:simulationMotion});
+  scene.prepare(simulationTime,{...snapshot?.puzzle,motionTime:simulationMotion},false,snapshot?.pranks);
   motor.step(command);
 }
 let accumulator = 0, lastFrame = performance.now(), lastHud = 0, latency = 0;
@@ -77,7 +79,7 @@ function updateSnapshot(next, reset = false) {
     pending = pending.filter(p => p.command.seq > self.state.seq);
   }
   snapshot = next; simulationTime = next.time; simulationMotion = next.puzzle.motionTime || 0;
-  motor.restore(self.state); scene.prepare(simulationTime,next.puzzle,true);
+  motor.restore(self.state); scene.prepare(simulationTime,next.puzzle,true,next.pranks);
   // Restore ALL movement state, not just position: cooldown, dash vector, coyote, wall timer.
   for (const entry of pending) { advancePhysics(entry.command); }
   if (!reset) {
@@ -90,7 +92,7 @@ function updateSnapshot(next, reset = false) {
     if (p.id === playerId) continue;
     if (!remote.has(p.id)) remote.set(p.id, new RemoteBuffer());
     remote.get(p.id).push(p.state, next.time, receivedAt);
-    view.avatar(p.id, colors[next.players.indexOf(p) % colors.length]);
+    view.avatar(p.id,p.skin);
   }
   for (const id of remote.keys()) if (!next.players.some(p => p.id === id)) {
     remote.delete(id); view.removePlayer(id);
@@ -107,7 +109,7 @@ function paintHud(now) {
   $('sector-name').textContent = level.name;
   $('copy-room').textContent = snapshot.room;
   $('team-count').textContent = `${snapshot.players.length} / 6 gezgin`;
-  const text = snapshot.puzzle.latched ? 'Geçiş sabitlendi. Yeşil checkpoint üzerinden parkura ilerleyin. Çıkışta buluşun.'
+  const text = snapshot.puzzle.latched ? 'Geçiş sabitlendi. Yeşil kayıt noktasından parkura ilerleyin. Çıkışta buluşun.'
     : snapshot.puzzle.open ? 'Köprü aktif! Bir gezgin B terminalinde E’ye basarak geçişi sabitlesin.'
     : snapshot.players.length < 2 ? 'Hareketleri deneyebilirsin. Geçiş için oda kodunu bir arkadaşınla paylaş.'
     : level.hint;
@@ -116,17 +118,21 @@ function paintHud(now) {
   const duration = level.puzzleType === 'timed' ? 3 : level.holdSeconds;
   const remaining = snapshot.puzzle.latched ? duration : Math.max(0, snapshot.puzzle.activeUntil - time);
   $('bridge-time').style.width = `${remaining / duration * 100}%`;
-  $('camera-mode').textContent = rig.thirdPerson ? 'TPS' : 'FPS';
-  $('motion').textContent = ({ dance: 'DANS', wave: 'SELAM', smoke: 'SİGARA' })[motor.state.emote] || motor.state.animation.toUpperCase();
+  $('camera-mode').textContent = rig.thirdPerson ? 'DIŞ KAMERA' : 'GÖZ KAMERASI';
+  $('motion').textContent = EMOTE_LABELS[motor.state.emote] || MOTION_LABELS[motor.state.animation] || 'DİNLENİYOR';
   $('dash-meter').style.width = `${(1 - motor.state.cooldown / MOVE.dashCooldown) * 100}%`;
   $('network-stat').textContent = net.joined ? `${latency} ms · onay` : 'BAĞLANTI YOK';
   $('save-status').textContent = { saved: 'İlerleme kaydedildi', saving: 'Kaydediliyor…', error: 'Kayıt başarısız · tekrar denenecek', unsaved: 'Henüz kaydedilmedi' }[snapshot.saveStatus];
   let hint = '';
-  if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalA)) hint = level.puzzleType === 'timed' ? 'E · 3 saniyelik köprü. Koşucu köprü üstünde dash yapmalı!' : level.puzzleType === 'plates' ? 'İki gezgin iki ayrı plakada 1 saniye beklesin' : `E BASILI TUT · Güç ver (${level.holdSeconds} sn)`;
+  if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalA)) hint = level.puzzleType === 'timed' ? 'E · 3 saniyelik köprü. Koşucu köprü üstünde atılmalı!' : level.puzzleType === 'plates' ? 'İki gezgin iki ayrı plakada 1 saniye beklesin' : `E BASILI TUT · Güç ver (${level.holdSeconds} sn)`;
   if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalB)) hint = 'E · Başarılı geçişi sabitle ve arkadaşına dönüş yolunu aç';
   if (!input.coarse && input.enabled && !document.pointerLockElement) hint = 'Etrafa bakmak için oyun alanına tıkla';
   if (!net.joined) hint = 'Bağlantı kesildi. Yeniden katılman bekleniyor…';
+  const fakeButton=level.traps.find(t=>t.type==='drop'&&near(motor.state.position,t.position));
+  if(fakeButton)hint='E · Kestirmeyi aç';
   $('interact-hint').textContent = hint;
+  $('troll-message').textContent = motor.state.prankLeft>0 ? PRANK_MESSAGES[motor.state.prank] || '' : '';
+  $('troll-message').hidden=!$('troll-message').textContent;
   // textContent avoids treating remote player names as markup.
   const list = snapshot.players.map(p => `${p.id === playerId ? 'Sen · ' : ''}${p.name}${p.checkpoint ? ' ✓' : ''}`);
   if ($('roster').dataset.text !== list.join('|')) {
@@ -156,7 +162,7 @@ function frame(now) {
     if (steps > 5) accumulator = 0;
     visualError.multiplyScalar(Math.exp(-14 * dt));
     renderPosition.copy(motor.state.position).add(visualError);
-    const avatar = view.avatar(playerId);
+    const avatar = view.avatar(playerId,snapshot.players.find(p=>p.id===playerId)?.skin || selectedSkin);
     view.pose(avatar, { ...motor.state, position: renderPosition, yaw: input.yaw }, now / 1000);
     rig.update(renderPosition, input, dt, view.solids, avatar);
     for (const [id, buffer] of remote) {
@@ -164,10 +170,13 @@ function frame(now) {
     }
     if (now - lastHud > 100) { paintHud(now); lastHud = now; }
   } else if (!connectedOnce) {
-    view.camera.position.set(24 + Math.sin(now * .00008) * 3, 18, 16);
-    view.camera.lookAt(-1, -1, -29);
+    view.camera.position.set(10 + Math.sin(now * .00008), 5, 13);
+    view.camera.lookAt(2, 1, -4);
+    const preview=view.avatar('preview',selectedSkin);
+    view.pose(preview,{position:{x:4,y:.84,z:2},yaw:Math.PI-.25,animation:'idle',emote:'dance',emoteLeft:8-(now/1000)%8},now/1000);
   } else if (now - lastHud > 100) { paintHud(now); lastHud = now; }
-  if(snapshot) view.updateDynamics(simulationTime,{...snapshot.puzzle,motionTime:simulationMotion});
+  if(snapshot) view.updateDynamics(simulationTime,{...snapshot.puzzle,motionTime:simulationMotion},snapshot.pranks);
+  expressive?.update(snapshot,motor?{state:motor.state}:null,now/1000);
   view.render(dt);
 }
 function token() {
@@ -185,16 +194,21 @@ function enter(create) {
   if (!/^[A-Z0-9]{6}$/.test(room)) return failure('6 karakterli oda kodunu yaz.');
   $('room').value = room; $('error').textContent = ''; setBusy(true);
   sound.play('ui');
-  try { net.connect({ room, token: token(), name: $('name').value, create }); }
+  try { net.connect({ room, token: token(), name: $('name').value, skin:selectedSkin, create }); }
   catch { failure('Tarayıcı oturum depolaması kullanılamıyor. Normal bir sekmede tekrar dene.'); }
 }
 async function boot() {
   await initPhysics();
   view = new WorldView($('world')); view.load(buildLevel(0)); rig = new CameraRig(view.camera);
+  expressive=new ExpressiveUI();
+  const picker=$('skin-picker');
+  try{const saved=localStorage.getItem('mahalle-skin');if(SKINS.some(s=>s.id===saved))selectedSkin=saved;}catch{}
+  for(const skin of SKINS){const button=document.createElement('button');button.type='button';button.textContent=skin.name;button.style.setProperty('--skin-color',skin.color);button.setAttribute('aria-pressed',String(skin.id===selectedSkin));button.addEventListener('click',()=>{selectedSkin=skin.id;try{localStorage.setItem('mahalle-skin',skin.id);}catch{}for(const b of picker.children)b.setAttribute('aria-pressed',String(b===button));sound.play('ui');});picker.append(button);}
   input = new Input($('world'), toggleCamera, pause);
   net = new Network({
     onStatus: message => { $('connection').textContent = message; }, onError: failure,
     onJoin: reply => {
+      view.removePlayer('preview');
       playerId = reply.id; connectedOnce = true; seq = 0; pending = [];
       updateSnapshot(reply.snapshot, true);
       $('lobby').hidden = true; $('hud').hidden = false; document.body.classList.add('playing');

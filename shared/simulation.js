@@ -13,7 +13,7 @@ export class PhysicsScene {
     this.solids = new Set();
     this.boxes = new Map();
     this.moving = new Map();
-    for (const b of [...level.boxes, level.bridge, ...(level.movers || [])]) {
+    for (const b of [...level.boxes, ...(level.invisibleWalls || []), level.bridge, ...(level.movers || [])]) {
       const c = this.world.createCollider(RAPIER.ColliderDesc
         .cuboid(b.size.x / 2, b.size.y / 2, b.size.z / 2)
         .setTranslation(b.position.x, b.position.y, b.position.z));
@@ -28,7 +28,8 @@ export class PhysicsScene {
     this.boxes.get('bridge').setEnabled(puzzle.latched || (puzzle.open && this.level.puzzleType !== 'operator'));
     this.boxes.get('exit-gate').setEnabled(!puzzle.latched);
   }
-  prepare(time,puzzle,reset=false) {
+  prepare(time,puzzle,reset=false,pranks={}) {
+    for(const trap of this.level.traps || [])if(trap.type==='drop')this.boxes.get(trap.floorId)?.setEnabled(!(pranks.drops?.[trap.floorId]>time));
     this.setPuzzle(puzzle);
     for(const [id,m] of this.moving){
       m.previous=m.position;
@@ -54,6 +55,7 @@ export class PhysicsScene {
 export function initialState(position, epoch = 0) {
   return { position: { ...position }, vy: 0, grounded: false, coyote: 0,
     dashLeft: 0, cooldown: 0, dashX: 0, dashZ: -1, wallLeft: MOVE.wallDuration,
+    knockX:0, knockZ:0, knockLeft:0, prank:null, prankLeft:0, prankSeq:0,
     yaw: 0, animation: 'idle', emote: null, emoteLeft: 0, epoch, seq: 0 };
 }
 
@@ -89,6 +91,9 @@ export class CharacterMotor {
     const s = this.state;
     const dt = DT;
     s.yaw = input.yaw;
+    s.knockLeft=Math.max(0,(s.knockLeft||0)-dt);
+    s.prankLeft=Math.max(0,(s.prankLeft||0)-dt);
+    if(!s.prankLeft)s.prank=null;
     s.cooldown = Math.max(0, s.cooldown - dt);
     s.dashLeft = Math.max(0, s.dashLeft - dt);
     if (s.grounded) { s.coyote = 0.1; s.wallLeft = MOVE.wallDuration; }
@@ -138,6 +143,7 @@ export class CharacterMotor {
       else desired.y+=carry.y;
       desired.x+=carry.x;desired.z+=carry.z;
     }
+    if(s.knockLeft>0){desired.x+=s.knockX*dt;desired.z+=s.knockZ*dt;s.knockX*=Math.exp(-2*dt);s.knockZ*=Math.exp(-2*dt);}
     this.controller.computeColliderMovement(this.collider, desired, undefined,
       undefined, c => this.scene.solids.has(c.handle));
     const corrected = this.controller.computedMovement();
@@ -152,7 +158,7 @@ export class CharacterMotor {
     if (!s.emoteLeft || moving || input.jump || input.dash || input.interact || !s.grounded) {
       s.emote = null; s.emoteLeft = 0;
     }
-    if (Object.hasOwn(EMOTES, input.emote) && s.grounded && !moving
+    if (Object.hasOwn(EMOTES, input.emote) && s.knockLeft<=0 && s.grounded && !moving
       && !input.jump && !input.dash && !input.interact && !dashing) {
       // A repeated press toggles the emote off; durations cannot be supplied by clients.
       s.emote = s.emote === input.emote ? null : input.emote;

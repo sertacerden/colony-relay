@@ -10,6 +10,7 @@ export class GameAudioEvents {
       else if (previous.sector !== next.sector) this.play('sector');
       else {
         if (self && before && self.state.epoch !== before.state.epoch) this.play('respawn');
+        else if(self && before && self.state.prankSeq>before.state.prankSeq)this.play(self.state.prank==='launch'?'boing':self.state.prank==='drop'||self.state.prank==='fake'?'oops':'bonk');
         if (self && before && self.checkpoint > before.checkpoint) this.play('checkpoint');
         if (!previous.puzzle.latched && next.puzzle.latched) this.play('latch');
         else if (!previous.puzzle.open && next.puzzle.open) { this.play('terminal'); this.play('bridge-open'); }

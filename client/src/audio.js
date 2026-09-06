@@ -154,6 +154,9 @@ export class GameAudio {
     const noise = (duration, volume, cutoff, extra = {}) => tone(440, duration, volume, { noise: true, cutoff, ...extra });
     const chime = notes => notes.forEach((midi, i) => tone(NOTE(midi), .65, .11, { time: time + i * .13 }));
     switch (name) {
+      case 'boing': tone(140,.32,.11,{endFrequency:650,type:'triangle'});tone(600,.25,.055,{time:time+.2,endFrequency:180});break;
+      case 'oops': tone(440,.2,.08,{endFrequency:280});tone(270,.3,.075,{time:time+.18,endFrequency:95});break;
+      case 'bonk': tone(190,.12,.1,{endFrequency:60});noise(.08,.04,800);break;
       case 'step': noise(.08, .065, 650, { filterType: 'bandpass' }); tone(120, .07, .07, { endFrequency: 65 }); break;
       case 'jump': tone(180, .18, .09, { endFrequency: 380 }); noise(.14, .025, 1800); break;
       case 'land': tone(110, .17, .11, { endFrequency: 45 }); noise(.13, .06, 1000); break;

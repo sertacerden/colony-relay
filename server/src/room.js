@@ -4,6 +4,8 @@ import { buildLevel, SECTORS } from '../../shared/levels.js';
 import { PhysicsScene, CharacterMotor, initialState } from '../../shared/simulation.js';
 import { parseInput } from '../../shared/protocol.js';
 import { near, newPuzzle, updatePuzzle } from './puzzle.js';
+import { skinById } from '../../shared/characters.js';
+import { newPranks, processPranks, prankNotice } from '../../shared/pranks.js';
 import { hazardHit } from '../../shared/dynamics.js';
 
 export class Room {
@@ -17,6 +19,7 @@ export class Room {
     this.elapsed = saved?.elapsedSeconds || 0;
     this.version = saved?.version || 0;
     this.completed = saved?.completed || false;
+    this.pranks = newPranks();
     this.puzzle = newPuzzle(saved?.puzzle?.latched || false);
     this.puzzle.participants = saved?.puzzle?.participants || [];
     this.level = buildLevel(this.sector);
@@ -26,7 +29,7 @@ export class Room {
     this.saveStatus = this.version ? 'saved' : 'unsaved';
     this.dirty = false;
   }
-  join(socket, { token, name }) {
+  join(socket, { token, name, skin }) {
     const id = createHash('sha256').update(token).digest('hex').slice(0, 24);
     const existing = this.players.get(id);
     if (existing?.socket?.connected) throw new Error('Bu kimlik başka bir sekmede açık.');
@@ -41,7 +44,7 @@ export class Room {
         queue: [], receivedSeq: 0, lastInputAt: 0, interact: false, budget: 120, budgetAt: Date.now() };
       this.players.set(id, p);
     }
-    p.socket = socket; p.name = name; p.disconnectedAt = 0;
+    p.socket = socket; p.name = name;p.skin=skinById(skin || this.roster[id]?.skin).id; p.disconnectedAt = 0;
     p.queue = []; p.receivedSeq = 0;
     p.motor.state.seq = 0; p.motor.state.epoch++;
     p.interact = false;
@@ -74,7 +77,7 @@ export class Room {
     this.save().catch(e => console.error('Save failed:', e.message));
   }
   updateRoster(p) {
-    this.roster[p.id] = { name: p.name, sector: this.sector,
+    this.roster[p.id] = { name: p.name, skin:p.skin, sector: this.sector,
       checkpoint: p.checkpoint, updatedAt: new Date().toISOString() };
     // Keep save size bounded; reconnect identity is guest-token based.
     const keys = Object.keys(this.roster);
@@ -88,7 +91,7 @@ export class Room {
     this.tick++; this.time += DT;
     const active = [...this.players.values()].filter(p => p.socket?.connected);
     if(this.puzzle.open || this.puzzle.latched)this.puzzle.motionTime+=DT;
-    this.scene.prepare(this.time,this.puzzle);
+    this.scene.prepare(this.time,this.puzzle,false,this.pranks);
     if (active.length) { this.lastOccupied = Date.now(); this.elapsed += DT; }
     for (const p of this.players.values()) {
       if (!p.socket?.connected) {
@@ -103,9 +106,13 @@ export class Room {
       const previous={...p.motor.state.position},cooldown=p.motor.state.cooldown;
       p.motor.step(input);
       if(input.dash&&p.motor.state.cooldown>cooldown){p.dashAt=this.time;p.dashEpoch=p.motor.state.epoch;p.dashPosition=previous;}
-      if (p.motor.state.position.y < this.level.fallY || hazardHit(this.level,p.motor.state.position,previous,this.time,this.puzzle)) {
+      processPranks(this.level,this.pranks,p,previous,this.time);
+      const fell=p.motor.state.position.y < this.level.fallY;
+      if (fell || hazardHit(this.level,p.motor.state.position,previous,this.time,this.puzzle)) {
         const epoch = p.motor.state.epoch + 1;
+        const prankSeq=p.motor.state.prankSeq;const reason=p.motor.state.prankLeft>0 ? p.motor.state.prank : fell?'fall':'laser';
         p.motor.restore(initialState(p.checkpoint ? this.level.checkpoints[p.checkpoint-1] : this.level.spawn, epoch));
+        p.motor.state.prankSeq=prankSeq;prankNotice(p.motor.state,reason);
         p.queue = []; p.receivedSeq = 0; p.interact = false;
       }
       if (this.puzzle.latched && p.checkpoint<this.level.checkpoints.length && p.motor.state.grounded
@@ -128,19 +135,20 @@ export class Room {
     for (const p of this.players.values()) p.motor.dispose();
     this.scene.free(); this.sector++; this.epoch++;
     this.level = buildLevel(this.sector); this.scene = new PhysicsScene(this.level);
-    this.puzzle = newPuzzle();
+    this.puzzle = newPuzzle();this.pranks=newPranks();
     for (const p of this.players.values()) {
       const epoch = p.motor.state.epoch + 1;
       p.motor = new CharacterMotor(this.scene, this.level.spawn); p.motor.state.epoch = epoch;
+      p.trapCooldowns={};p.prankDown=false;
       p.checkpoint = 0; p.queue = []; p.receivedSeq = 0; p.interact = false; this.updateRoster(p);
     }
     this.dirty = true;
   }
   snapshot() {
     return { room: this.id, tick: this.tick, time: this.time, sector: this.sector, epoch: this.epoch,
-      elapsed: this.elapsed, completed: this.completed, puzzle: { ...this.puzzle }, saveStatus: this.saveStatus,
+      pranks:structuredClone(this.pranks), elapsed: this.elapsed, completed: this.completed, puzzle: { ...this.puzzle }, saveStatus: this.saveStatus,
       players: [...this.players.values()].filter(p => p.socket?.connected).map(p => ({ id: p.id,
-        name: p.name, checkpoint: p.checkpoint, state: structuredClone(p.motor.state) })) };
+        skin:p.skin, name: p.name, checkpoint: p.checkpoint, state: structuredClone(p.motor.state) })) };
   }
   record() {
     for (const p of this.players.values()) this.updateRoster(p);

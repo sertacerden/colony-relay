@@ -56,7 +56,7 @@ export class Input {
       jump: this.enabled && this.pulses.has('Space'), dash: this.enabled && this.pulses.has('KeyQ'),
       interact: this.enabled && k.has('KeyE'),
       emote: this.enabled ? this.pulses.has('Digit1') ? 'dance' : this.pulses.has('Digit2') ? 'wave'
-        : this.pulses.has('Digit3') ? 'smoke' : null : null };
+        : this.pulses.has('Digit3') ? 'smoke' : this.pulses.has('Digit4') ? 'helicopter' : this.pulses.has('Digit5') ? 'robot' : this.pulses.has('Digit6') ? 'flop' : null : null };
     this.pulses.clear(); return command;
   }
   async capture() {

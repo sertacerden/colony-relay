@@ -1,9 +1,11 @@
+import { validSkin } from './characters.js';
 import { PROTOCOL, EMOTES } from './config.js';
 export function parseJoin(v) {
   if (!v || v.protocol !== PROTOCOL || typeof v.room !== 'string'
     || !/^[A-Z0-9]{6}$/.test(v.room) || typeof v.token !== 'string'
     || !/^[a-zA-Z0-9-]{32,80}$/.test(v.token) || typeof v.name !== 'string') return null;
-  return { room: v.room, token: v.token, name: v.name.trim().slice(0, 20) || 'Gezgin', create: v.create === true };
+  if(v.skin != null && !validSkin(v.skin))return null;
+  return { skin:v.skin || 'courier', room: v.room, token: v.token, name: v.name.trim().slice(0, 20) || 'Gezgin', create: v.create === true };
 }
 export function parseInput(v, epoch) {
   if (!v || !Number.isSafeInteger(v.seq) || v.seq < 1 || v.epoch !== epoch

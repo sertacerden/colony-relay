@@ -9,3 +9,32 @@
 @media(max-width:420px){.wordmark{max-width:105px;font-size:11px}.connection{max-width:95px;font-size:9px;padding:6px}.masthead{padding:15px}}
 
 #graphics-quality{width:100%;background:#142b3d;color:#dbf5fa;border:1px solid #456378;border-radius:8px;padding:10px;margin:6px 0 16px;font:inherit}
+/* Earth palette: warm paper, sage and terracotta; controls remain high contrast. */
+:root{color:#29463e;background:#bdd0cb;color-scheme:light;--cyan:#416e69;--lime:#cad69c;--muted:#536e64}
+.masthead{color:#2d493f}.brand{color:#36584d;border-color:#5c7a6855;background:#f3edddc9;border-radius:12px}.brand i{background:#d49c7d}.wordmark small{color:#4f6a60}
+.connection,body.playing .connection{color:#355749;background:#f2eddfdd;border-color:#72948166;border-radius:20px}
+.lobby{background:linear-gradient(90deg,#f0eadbea 0%,#f0eadbda 30%,#f0eadb18 62%,transparent 100%);padding-top:110px;align-items:flex-start}
+h1{font-weight:850;letter-spacing:-3px}.brief>p,.brief>p.footnote{color:#50685d}.mission-meta{color:#526a48}.eyebrow span{color:#9b654c}
+.join-panel{max-width:420px;background:#f9f4e9ee;border-color:#829a784d;border-radius:20px;box-shadow:0 14px 35px #4f63531c}
+label{color:#375547}input{background:#fffdf6;color:#2c483e;border-color:#8a9f8866;border-radius:9px}
+.primary{background:#c8d695;color:#31482c;border-radius:10px}.primary:hover{background:#b6cc7f}
+.secondary{background:#e0e6d5;color:#355245;border-color:#889e7766;border-radius:9px}.secondary:hover{background:#cfddc0}
+.divider{color:#65775e}.error{color:#a13e30}.sector-card,.glass{background:#f7f1e4eb;border-color:#76947c66;color:#2d4c40;border-radius:14px;backdrop-filter:blur(8px)}
+.sector-card p,.objective p{color:#466252}.sector-card{border-left:4px solid #c99172;box-shadow:0 10px 30px #2e49351a}
+.interact-hint{background:#f7f1e4f2;border-color:#5d8376;color:#2e4a40;border-radius:12px;max-width:min(90vw,520px)}
+.keyboard-help{color:#294b3c;background:#f0eadbd9;padding:8px 12px;bottom:0}.keyboard-help span{color:#49695c}
+#crosshair{color:#2f5145;text-shadow:0 0 2px white}.boot{background:#e9e8d6;color:#436651}.modal{background:#273e3177}
+#graphics-quality{background:#fdf9ed;color:#2b493a;border-color:#93a787}
+.skin-field{border:0;margin:0 0 16px;padding:0}.skin-field legend{font-size:13px;color:#4d6655;margin-bottom:10px}
+.skin-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.skin-picker button{min-height:52px;border:1px solid #99aa8f;background:#f7f3e7;color:#354a3c;border-radius:10px;font-size:11px;padding:9px 5px;position:relative;transition:transform .15s,background .15s}
+.skin-picker button:before{content:'';display:block;width:17px;height:17px;border-radius:6px;background:var(--skin-color);margin:0 auto 5px;border:1px solid #45614855}
+.skin-picker button[aria-pressed=true]{background:#dfe7c7;border:2px solid #56764f;transform:translateY(-2px)}.skin-picker button:hover{transform:translateY(-3px)}
+.mascot{position:fixed;right:34px;bottom:235px;width:105px;height:105px;pointer-events:none;z-index:3}.mascot canvas{width:100%;height:100%}
+.troll-message{position:fixed;right:28px;bottom:155px;max-width:300px;background:#f7dfbbeF;color:#74452f;border:2px solid #c89b76;border-radius:18px 18px 4px 18px;padding:14px 18px;box-shadow:0 8px 24px #604c2822;z-index:4;font-weight:650;animation:prank-pop .2s ease-out}
+@keyframes prank-pop{from{transform:translateY(10px) rotate(-3deg);opacity:.3}to{transform:none;opacity:1}}
+.emote-bar{flex-wrap:wrap;max-width:310px}.emote-bar button,.pause-emotes button{background:#e3e8d6;color:#36533e;border-color:#90a17e;border-radius:8px}.emote-bar button:hover,.pause-emotes button:hover{background:#d1ddbd}.pause-emotes{display:grid;grid-template-columns:repeat(3,1fr)}
+@media(max-width:800px){.lobby{background:linear-gradient(90deg,#f0eadbf2,#f0eadbc0)}.mascot{right:12px;bottom:220px;width:72px;height:72px}.troll-message{right:12px;bottom:155px;max-width:210px;font-size:12px}.skin-picker button{font-size:10px;min-height:45px}.emote-bar{max-width:260px}.brief{max-width:420px}}
+@media(prefers-reduced-motion:reduce){.skin-picker button,.troll-message{transition:none;animation:none}}
+
+.audio-controls summary{background:#f4efe2ee;color:#385b4b;border-color:#8ba184;border-radius:10px}.audio-panel{background:#f7f1e4fa;box-shadow:0 16px 45px #45533933}.emote-bar kbd{color:#576d42}
+@media(max-width:800px){.troll-message{bottom:300px}.mascot{display:none}}

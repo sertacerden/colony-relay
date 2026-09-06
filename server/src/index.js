@@ -16,7 +16,7 @@ export async function createGameServer({ store, autoTick = true } = {}) {
   // Resolve from server/src: ../../ is project root.
   const dist = resolve(root);
   const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
-    '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+    '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.glb':'model/gltf-binary', '.gltf':'model/gltf+json', '.json':'application/json', '.riv':'application/octet-stream', '.mjs':'text/javascript' };
   const http = createServer(async (req, res) => {
     if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"ok":true}'); }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
@@ -29,7 +29,7 @@ export async function createGameServer({ store, autoTick = true } = {}) {
       res.writeHead(200, { 'Content-Type': types[extname(path)] || 'application/octet-stream',
         'X-Content-Type-Options': 'nosniff', 'Cache-Control': pathname.startsWith('/assets/') ? 'public,max-age=31536000,immutable' : 'no-cache' });
       res.end(req.method === 'HEAD' ? undefined : bytes);
-    } catch { res.writeHead(404); res.end('Not found. Build client with npm run build.'); }
+    } catch { res.writeHead(404); res.end('Sayfa bulunamadı. Oyun derlemesi henüz hazır olmayabilir.'); }
   });
   const origins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3001').split(',');
   const io = new Server(http, { maxHttpBufferSize: 8192, pingTimeout: 10_000,
