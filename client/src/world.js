@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { Graphics, panelTextures } from './graphics.js';
+import { dynamicPosition, laserState } from '../../shared/dynamics.js';
 import { emotePose } from './emotes.js';
 export class WorldView {
   constructor(canvas) {
@@ -18,20 +20,23 @@ export class WorldView {
     this.puffGeometry = new THREE.IcosahedronGeometry(1, 0);
     this.cigaretteMaterial = new THREE.MeshStandardMaterial({ color: '#dedbcf', roughness: 1 });
     this.emberMaterial = new THREE.MeshBasicMaterial({ color: '#fb9860' });
+    const panels=panelTextures();
     this.materials = {
-      floor: new THREE.MeshStandardMaterial({ color: '#233c50', roughness: .9, metalness: .25 }),
-      wall: new THREE.MeshStandardMaterial({ color: '#355369', roughness: .8 }),
+      floor: new THREE.MeshStandardMaterial({ ...panels, color: '#63798b' }),
+      wall: new THREE.MeshStandardMaterial({ ...panels, color: '#8296a7' }),
       gate: new THREE.MeshStandardMaterial({ color: '#ff9860', emissive: '#f5722c', emissiveIntensity: .5, transparent: true, opacity: .7 }),
       bridge: new THREE.MeshStandardMaterial({ color: '#69edf2', emissive: '#29acb8', emissiveIntensity: .7 }),
-      accent: new THREE.MeshBasicMaterial({ color: '#66eff2' }),
+      accent: new THREE.MeshStandardMaterial({ color: '#66eff2', emissive:'#66eff2',emissiveIntensity:2 }),
       terminal: new THREE.MeshStandardMaterial({ color: '#b8f478', emissive: '#66b934', emissiveIntensity: .4 }),
+      hazard: new THREE.MeshStandardMaterial({color:'#ff6354',emissive:'#ff382c',emissiveIntensity:3}),
       dark: new THREE.MeshStandardMaterial({ color: '#102232', roughness: 1 })
     };
     this.players = new Map();
     this.makeSpace();
+    this.graphics=new Graphics(this,sun);
     window.addEventListener('resize', () => {
       this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix();
-      this.renderer.setSize(innerWidth, innerHeight);
+      this.graphics.resize();
     });
   }
   makeSpace() {
@@ -56,6 +61,7 @@ export class WorldView {
   }
   box(group, position, size, material) {
     const mesh = new THREE.Mesh(this.cube, material);
+    mesh.castShadow=true;mesh.receiveShadow=true;
     mesh.position.copy(position); mesh.scale.copy(size); group.add(mesh); return mesh;
   }
   load(level) {
@@ -68,7 +74,7 @@ export class WorldView {
     }
     this.levelGroup = new THREE.Group(); this.scene.add(this.levelGroup);
     this.level = level; this.solids = [];
-    this.materials.accent.color.set(level.accent);
+    this.materials.accent.color.set(level.accent);this.materials.accent.emissive.set(level.accent);
     for (const b of level.boxes) {
       const mesh = this.box(this.levelGroup, b.position, b.size, this.materials[b.kind]);
       this.solids.push(mesh); if (b.kind === 'gate') this.gate = mesh;
@@ -80,11 +86,11 @@ export class WorldView {
     const dummy = new THREE.Object3D();
     let n = 0;
     for (const floor of floors) for (const side of [-1, 1]) {
-      dummy.position.set(floor.position.x + side * (floor.size.x / 2 - .12), .025, floor.position.z);
+      dummy.position.set(floor.position.x + side * (floor.size.x / 2 - .12), floor.position.y+floor.size.y/2+.025, floor.position.z);
       dummy.scale.set(.08, .04, floor.size.z - .3); dummy.updateMatrix(); strips.setMatrixAt(n++, dummy.matrix);
     }
     this.levelGroup.add(strips);
-    for (const [index, p] of [level.terminalA, level.terminalB].entries()) {
+    for (const [index, p] of (level.puzzleType==='plates'?[]:[level.terminalA, level.terminalB]).entries()) {
       this.box(this.levelGroup, { x: p.x, y: .4, z: p.z }, { x: 1, y: .8, z: .9 }, this.materials.dark);
       const screen = this.box(this.levelGroup, { x: p.x, y: 1, z: p.z }, { x: .9, y: .6, z: .15 }, this.materials.terminal);
       screen.rotation.x = -.3;
@@ -96,13 +102,29 @@ export class WorldView {
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
       sprite.position.set(p.x, 2.5, p.z); sprite.scale.set(1, 1, 1); this.levelGroup.add(sprite);
     }
-    this.box(this.levelGroup, { x: 0, y: .02, z: level.checkpoint.z }, { x: 2, y: .04, z: 2 }, this.materials.terminal);
-    for (const x of [-4.5, 4.5]) this.box(this.levelGroup,
-      { x, y: 2.5, z: level.exit.z }, { x: .35, y: 5, z: .4 }, this.materials.accent);
-    this.box(this.levelGroup, { x: 0, y: 5, z: level.exit.z }, { x: 9.35, y: .35, z: .4 }, this.materials.accent);
+    for(const p of level.checkpoints)this.box(this.levelGroup,{x:p.x,y:p.y-.84,z:p.z},{x:2,y:.04,z:2},this.materials.terminal);
+    for (const side of [-1,1])this.box(this.levelGroup,{x:level.exit.x+side*4.5,y:level.exit.y+1.5,z:level.exit.z},{x:.35,y:5,z:.4},this.materials.accent);
+    this.box(this.levelGroup,{x:level.exit.x,y:level.exit.y+4,z:level.exit.z},{x:9.35,y:.35,z:.4},this.materials.accent);
+    this.movers=new Map();for(const b of level.movers){const mesh=this.box(this.levelGroup,b.position,b.size,this.materials.floor);this.movers.set(b.id,mesh);this.solids.push(mesh);}
+    this.lasers=new Map();for(const b of level.lasers){this.lasers.set(b.id,this.box(this.levelGroup,b.position,b.size,this.materials.hazard));}
+    if(level.puzzleType==='plates')for(const p of level.plates)this.box(this.levelGroup,p,{x:1.8,y:.12,z:1.8},this.materials.terminal);
+    // One instanced structural kit reused along the complete route.
+    const kit=new THREE.InstancedMesh(this.cube,this.materials.wall,level.routePoints.length*2);
+    const prop=new THREE.Object3D();let k=0;
+    for(const [i,p] of level.routePoints.entries())for(const side of [-1,1]){
+      prop.position.set(p.x+side*(11+i%3*2),p.y-5,p.z);
+      prop.scale.set(level.theme==='city'?4:1.5,6+i%5*2,level.theme==='cargo'?5:2);
+      prop.updateMatrix();kit.setMatrixAt(k++,prop.matrix);
+    }
+    kit.castShadow=true;kit.receiveShadow=true;this.levelGroup.add(kit);
     this.setPuzzle({ open: false, latched: false });
+    this.updateDynamics(0,{});
   }
-  setPuzzle(puzzle) { this.bridge.visible = puzzle.open || puzzle.latched; this.gate.visible = !puzzle.latched; }
+  setPuzzle(puzzle) { this.bridge.visible = puzzle.latched || (puzzle.open && this.level.puzzleType!=='operator'); this.gate.visible = !puzzle.latched; }
+  updateDynamics(time,puzzle) {
+    for(const b of this.level.movers)this.movers.get(b.id).position.copy(dynamicPosition(b,b.motion.controlled?puzzle.motionTime||0:time));
+    for(const b of this.level.lasers){const state=laserState(b,time,puzzle),mesh=this.lasers.get(b.id);mesh.position.copy(state.position);mesh.visible=state.active;}
+  }
   avatar(id, color = '#6eedf2') {
     if (this.players.has(id)) return this.players.get(id);
     const group = new THREE.Group();
@@ -158,5 +180,5 @@ export class WorldView {
     const avatar = this.players.get(id); if (!avatar) return;
     this.scene.remove(avatar); avatar.userData.material.dispose(); avatar.userData.puffMaterial.dispose(); this.players.delete(id);
   }
-  render() { this.renderer.render(this.scene, this.camera); }
+  render(dt=1/60) { this.graphics.render(dt); }
 }

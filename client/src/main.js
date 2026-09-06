@@ -15,6 +15,13 @@ const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 2.4;
 const colors = ['#65e9f3', '#c3fa7a', '#f4a36d', '#b39afa', '#f68bac', '#f8dc81'];
 let view, scene, motor, level, rig, input, net, snapshot, snapshotAt = 0;
 let playerId = null, roomEpoch = null, seq = 0, pending = [], connectedOnce = false;
+let simulationTime = 0, simulationMotion = 0;
+function advancePhysics(command) {
+  simulationTime += DT;
+  if(snapshot?.puzzle.open || snapshot?.puzzle.latched) simulationMotion += DT;
+  scene.prepare(simulationTime,{...snapshot?.puzzle,motionTime:simulationMotion});
+  motor.step(command);
+}
 let accumulator = 0, lastFrame = performance.now(), lastHud = 0, latency = 0;
 const remote = new Map(), visualError = new THREE.Vector3(), renderPosition = new THREE.Vector3();
 const btns = [...document.querySelectorAll('#join-form button')];
@@ -69,9 +76,10 @@ function updateSnapshot(next, reset = false) {
     if (acked) latency = Math.round(receivedAt - acked.sentAt);
     pending = pending.filter(p => p.command.seq > self.state.seq);
   }
-  motor.restore(self.state); scene.step();
+  snapshot = next; simulationTime = next.time; simulationMotion = next.puzzle.motionTime || 0;
+  motor.restore(self.state); scene.prepare(simulationTime,next.puzzle,true);
   // Restore ALL movement state, not just position: cooldown, dash vector, coyote, wall timer.
-  for (const entry of pending) { motor.step(entry.command); scene.step(); }
+  for (const entry of pending) { advancePhysics(entry.command); }
   if (!reset) {
     visualError.x += oldPosition.x - motor.state.position.x;
     visualError.y += oldPosition.y - motor.state.position.y;
@@ -90,7 +98,7 @@ function updateSnapshot(next, reset = false) {
   snapshot = next; snapshotAt = receivedAt;
   if (next.completed) {
     pause(); $('pause-title').textContent = 'Ekip güvenli bölgeye ulaştı';
-    $('pause-copy').textContent = 'Üç örnek sektörü tamamladınız. Görev ilerlemeniz kaydediliyor.';
+    $('pause-copy').textContent = '25 sektörlük yolculuğu tamamladınız. Görev ilerlemeniz kaydediliyor.';
   }
 }
 function paintHud(now) {
@@ -102,19 +110,20 @@ function paintHud(now) {
   const text = snapshot.puzzle.latched ? 'Geçiş sabitlendi. Yeşil checkpoint üzerinden parkura ilerleyin. Çıkışta buluşun.'
     : snapshot.puzzle.open ? 'Köprü aktif! Bir gezgin B terminalinde E’ye basarak geçişi sabitlesin.'
     : snapshot.players.length < 2 ? 'Hareketleri deneyebilirsin. Geçiş için oda kodunu bir arkadaşınla paylaş.'
-    : 'Bir gezgin A terminalinde E’yi basılı tutsun. Diğeri köprüden B’ye geçsin.';
-  $('objective').textContent = text;
+    : level.hint;
+  $('objective').textContent = snapshot.puzzle.latched ? `${level.hint} · Kontrol noktası ${snapshot.players.find(p=>p.id===playerId)?.checkpoint || 0}/${level.checkpoints.length}. Çıkışta buluşun.` : level.puzzleType === 'plates' ? `İki ayrı plakaya aynı anda basın · %${Math.round(snapshot.puzzle.charge*100)}` : snapshot.puzzle.open && level.puzzleType === 'operator' ? 'Taşıyıcı çalışıyor, kontrollü lazer kapalı. Koşucu B’den dönüş yolunu açsın.' : text;
   const time = snapshot.time + Math.min(.25, (now - snapshotAt) / 1000);
-  const remaining = snapshot.puzzle.latched ? 8 : Math.max(0, snapshot.puzzle.activeUntil - time);
-  $('bridge-time').style.width = `${remaining / 8 * 100}%`;
+  const duration = level.puzzleType === 'timed' ? 3 : level.holdSeconds;
+  const remaining = snapshot.puzzle.latched ? duration : Math.max(0, snapshot.puzzle.activeUntil - time);
+  $('bridge-time').style.width = `${remaining / duration * 100}%`;
   $('camera-mode').textContent = rig.thirdPerson ? 'TPS' : 'FPS';
   $('motion').textContent = ({ dance: 'DANS', wave: 'SELAM', smoke: 'SİGARA' })[motor.state.emote] || motor.state.animation.toUpperCase();
   $('dash-meter').style.width = `${(1 - motor.state.cooldown / MOVE.dashCooldown) * 100}%`;
   $('network-stat').textContent = net.joined ? `${latency} ms · onay` : 'BAĞLANTI YOK';
   $('save-status').textContent = { saved: 'İlerleme kaydedildi', saving: 'Kaydediliyor…', error: 'Kayıt başarısız · tekrar denenecek', unsaved: 'Henüz kaydedilmedi' }[snapshot.saveStatus];
   let hint = '';
-  if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalA)) hint = 'E BASILI TUT · Köprüye güç ver (8 sn)';
-  if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalB)) hint = 'E · Ekip arkadaşın A’yı tutarken geçişi sabitle';
+  if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalA)) hint = level.puzzleType === 'timed' ? 'E · 3 saniyelik köprü. Koşucu köprü üstünde dash yapmalı!' : level.puzzleType === 'plates' ? 'İki gezgin iki ayrı plakada 1 saniye beklesin' : `E BASILI TUT · Güç ver (${level.holdSeconds} sn)`;
+  if (!snapshot.puzzle.latched && near(motor.state.position, level.terminalB)) hint = 'E · Başarılı geçişi sabitle ve arkadaşına dönüş yolunu aç';
   if (!input.coarse && input.enabled && !document.pointerLockElement) hint = 'Etrafa bakmak için oyun alanına tıkla';
   if (!net.joined) hint = 'Bağlantı kesildi. Yeniden katılman bekleniyor…';
   $('interact-hint').textContent = hint;
@@ -138,7 +147,7 @@ function frame(now) {
         const command = input.sample(++seq, motor.state.epoch);
         pending.push({ command, sentAt: now }); net.send(command);
         const before = { ...motor.state };
-        motor.step(command); scene.step();
+        advancePhysics(command);
         soundEvents.movement(before, motor.state, command, now);
         if (command.emote && motor.state.emote) rig.thirdPerson = true;
       }
@@ -158,7 +167,8 @@ function frame(now) {
     view.camera.position.set(24 + Math.sin(now * .00008) * 3, 18, 16);
     view.camera.lookAt(-1, -1, -29);
   } else if (now - lastHud > 100) { paintHud(now); lastHud = now; }
-  view.render();
+  if(snapshot) view.updateDynamics(simulationTime,{...snapshot.puzzle,motionTime:simulationMotion});
+  view.render(dt);
 }
 function token() {
   let value = sessionStorage.getItem('colony-token');
@@ -205,6 +215,8 @@ async function boot() {
   });
   $('room').value = (new URLSearchParams(location.search).get('room') || '').slice(0, 6);
   paintAudioSettings();
+  $('graphics-quality').value = view.graphics.preference;
+  $('graphics-quality').addEventListener('change', e => view.graphics.set(e.target.value));
   const unlockAudio = () => {
     sound.unlock().then(ok => { $('audio-note').textContent = ok ? 'M · Tüm sesleri aç / kapat' : 'Sesi başlatmak için tekrar tıkla.'; });
   };

@@ -4,6 +4,7 @@ import { buildLevel, SECTORS } from '../../shared/levels.js';
 import { PhysicsScene, CharacterMotor, initialState } from '../../shared/simulation.js';
 import { parseInput } from '../../shared/protocol.js';
 import { near, newPuzzle, updatePuzzle } from './puzzle.js';
+import { hazardHit } from '../../shared/dynamics.js';
 
 export class Room {
   constructor(id, io, store, saved = null) {
@@ -33,8 +34,9 @@ export class Room {
     let p = existing;
     if (!p) {
       const record = this.roster[id];
-      const checkpoint = record?.sector === this.sector && record.checkpoint === 1 && this.puzzle.latched ? 1 : 0;
-      const spawn = checkpoint ? this.level.checkpoint : this.level.spawn;
+      const checkpoint = record?.sector === this.sector && Number.isInteger(record.checkpoint) && this.puzzle.latched
+        ? Math.max(0,Math.min(this.level.checkpoints.length,record.checkpoint)) : 0;
+      const spawn = checkpoint ? this.level.checkpoints[checkpoint-1] : this.level.spawn;
       p = { id, name, motor: new CharacterMotor(this.scene, spawn), checkpoint,
         queue: [], receivedSeq: 0, lastInputAt: 0, interact: false, budget: 120, budgetAt: Date.now() };
       this.players.set(id, p);
@@ -85,6 +87,8 @@ export class Room {
   step() {
     this.tick++; this.time += DT;
     const active = [...this.players.values()].filter(p => p.socket?.connected);
+    if(this.puzzle.open || this.puzzle.latched)this.puzzle.motionTime+=DT;
+    this.scene.prepare(this.time,this.puzzle);
     if (active.length) { this.lastOccupied = Date.now(); this.elapsed += DT; }
     for (const p of this.players.values()) {
       if (!p.socket?.connected) {
@@ -96,21 +100,23 @@ export class Room {
       const input = p.queue.shift() || { ...idleInput(p.motor.state.epoch),
         yaw: p.motor.state.yaw, interact: p.interact && Date.now() - p.lastInputAt < 180 };
       p.interact = input.interact;
+      const previous={...p.motor.state.position},cooldown=p.motor.state.cooldown;
       p.motor.step(input);
-      if (p.motor.state.position.y < this.level.fallY) {
+      if(input.dash&&p.motor.state.cooldown>cooldown){p.dashAt=this.time;p.dashEpoch=p.motor.state.epoch;p.dashPosition=previous;}
+      if (p.motor.state.position.y < this.level.fallY || hazardHit(this.level,p.motor.state.position,previous,this.time,this.puzzle)) {
         const epoch = p.motor.state.epoch + 1;
-        p.motor.restore(initialState(p.checkpoint ? this.level.checkpoint : this.level.spawn, epoch));
+        p.motor.restore(initialState(p.checkpoint ? this.level.checkpoints[p.checkpoint-1] : this.level.spawn, epoch));
         p.queue = []; p.receivedSeq = 0; p.interact = false;
       }
-      if (this.puzzle.latched && !p.checkpoint && near(p.motor.state.position, this.level.checkpoint, 5)) {
-        p.checkpoint = 1; this.updateRoster(p); this.dirty = true;
+      if (this.puzzle.latched && p.checkpoint<this.level.checkpoints.length && p.motor.state.grounded
+        &&near(p.motor.state.position, this.level.checkpoints[p.checkpoint], 2.5)) {
+        p.checkpoint++; this.updateRoster(p); this.dirty = true;
       }
     }
-    if (updatePuzzle(this.puzzle, active, this.level, this.time)) {
+    if (updatePuzzle(this.puzzle, active, this.level, this.time, 0)) {
       this.scene.setPuzzle(this.puzzle);
       if (this.puzzle.latched) this.dirty = true;
     }
-    this.scene.step();
     // Every connected player must reach the exit; a single player cannot complete a sector.
     if (!this.completed && this.puzzle.latched && active.length >= 2
       && active.every(p => near(p.motor.state.position, this.level.exit, 4))) this.advance();

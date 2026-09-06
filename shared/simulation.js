@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { DT, MOVE, EMOTES } from './config.js';
+import { dynamicPosition } from './dynamics.js';
 export { RAPIER };
 let initialized;
 export function initPhysics() { return initialized ??= RAPIER.init(); }
@@ -11,19 +12,40 @@ export class PhysicsScene {
     this.world.timestep = DT;
     this.solids = new Set();
     this.boxes = new Map();
-    for (const b of [...level.boxes, level.bridge]) {
+    this.moving = new Map();
+    for (const b of [...level.boxes, level.bridge, ...(level.movers || [])]) {
       const c = this.world.createCollider(RAPIER.ColliderDesc
         .cuboid(b.size.x / 2, b.size.y / 2, b.size.z / 2)
         .setTranslation(b.position.x, b.position.y, b.position.z));
       this.solids.add(c.handle);
       this.boxes.set(b.id, c);
+      if(b.motion)this.moving.set(b.id,{item:b,previous:{...b.position},position:{...b.position},delta:{x:0,y:0,z:0}});
     }
     this.setPuzzle({ open: false, latched: false });
-    this.world.step();
+    this.prepare(0, {open:false,latched:false}, true);
   }
   setPuzzle(puzzle) {
-    this.boxes.get('bridge').setEnabled(puzzle.open || puzzle.latched);
+    this.boxes.get('bridge').setEnabled(puzzle.latched || (puzzle.open && this.level.puzzleType !== 'operator'));
     this.boxes.get('exit-gate').setEnabled(!puzzle.latched);
+  }
+  prepare(time,puzzle,reset=false) {
+    this.setPuzzle(puzzle);
+    for(const [id,m] of this.moving){
+      m.previous=m.position;
+      m.position=dynamicPosition(m.item,m.item.motion.controlled?puzzle.motionTime||0:time);
+      if(reset)m.previous=m.position;
+      m.delta={x:m.position.x-m.previous.x,y:m.position.y-m.previous.y,z:m.position.z-m.previous.z};
+      this.boxes.get(id).setTranslation(m.position);
+    }
+    this.world.step();
+  }
+  carry(position) {
+    for(const m of this.moving.values()){
+      const p=m.previous,s=m.item.size;
+      if(Math.abs(position.y-.82-(p.y+s.y/2))<.14
+        &&Math.abs(position.x-p.x)<s.x/2+.15&&Math.abs(position.z-p.z)<s.z/2+.15)return m.delta;
+    }
+    return {x:0,y:0,z:0};
   }
   step() { this.world.step(); }
   free() { this.world.free(); }
@@ -108,6 +130,14 @@ export class CharacterMotor {
     const dashing = s.dashLeft > 0;
     const desired = { x: (dashing ? s.dashX * MOVE.dashSpeed : dx * speed) * dt,
       y: s.vy * dt, z: (dashing ? s.dashZ * MOVE.dashSpeed : dz * speed) * dt };
+    if(s.grounded){
+      const carry=this.scene.carry(s.position);
+      // The platform collider is already at its new height. Lift the rider out
+      // of that swept surface before querying movement; authored lifts have clear headroom.
+      if(carry.y>0){s.position.y+=carry.y;this.collider.setTranslation(s.position);}
+      else desired.y+=carry.y;
+      desired.x+=carry.x;desired.z+=carry.z;
+    }
     this.controller.computeColliderMovement(this.collider, desired, undefined,
       undefined, c => this.scene.solids.has(c.handle));
     const corrected = this.controller.computedMovement();

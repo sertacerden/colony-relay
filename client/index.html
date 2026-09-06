@@ -9,8 +9,9 @@
     <div class="wordmark">COLONY RELAY<small>KEPLER–09 / KURTARMA GÖREVİ</small></div>
     <div class="connection" id="connection" role="status">BAĞLANTI BEKLENİYOR</div>
     <details id="audio-controls" class="audio-controls">
-      <summary aria-label="Ses ayarları">♫ <span>Ses</span></summary>
+      <summary aria-label="Ses ve grafik ayarları">⚙ <span>Ayarlar</span></summary>
       <div class="audio-panel glass">
+        <label for="graphics-quality">Grafik kalitesi</label><select id="graphics-quality" aria-label="Grafik kalitesi"><option value="auto">Otomatik grafik</option><option value="low">Düşük</option><option value="balanced">Dengeli</option><option value="high">Yüksek · SSAO</option></select>
         <strong>Koloninin sesi</strong><p>Sakin ritimler, uzak sinyaller.</p>
         <label for="music-volume">Müzik <output id="music-value" for="music-volume">38%</output></label>
         <input id="music-volume" type="range" min="0" max="100" value="38"/>
@@ -21,10 +22,10 @@
       </div>
     </details></header>
   <main id="lobby" class="lobby">
-    <section class="brief"><div class="eyebrow"><span>01 / 03</span> SİNYAL YENİDEN ALINDI</div>
+    <section class="brief"><div class="eyebrow"><span>01 / 25</span> SİNYAL YENİDEN ALINDI</div>
       <h1>Kimseyi<br/>geride <em>bırakma.</em></h1>
       <p>Koloni sessiz. Enerji tükeniyor.<br/>Geçişi birlikte açın, çıkışa birlikte ulaşın.</p>
-      <div class="mission-meta"><span>2–6 GEZGİN</span><span>3 ÖRNEK SEKTÖR</span><span>CO-OP PARKUR</span></div>
+      <div class="mission-meta"><span>2–6 GEZGİN</span><span>25 SEKTÖR</span><span>CO-OP PARKUR</span></div>
       <form id="join-form" class="join-panel">
         <label for="name">Çağrı adın</label><input id="name" name="name" maxlength="20" value="Gezgin" required autocomplete="nickname"/>
         <button id="create" class="primary" type="button">Yeni görev başlat <span>↗</span></button>

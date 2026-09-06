@@ -50,6 +50,10 @@ export class DynamoStore {
 }
 export function validateSave(record) {
   if (!record) return null;
+  if (record.schemaVersion === 1 && record.levelVersion === 1 && Number.isInteger(record.sector) && record.sector >= 0 && record.sector < 3 && record.roster) {
+    record = {...record, levelVersion: LEVEL_VERSION, completed:false, puzzle:{latched:false,participants:[]},
+      roster:Object.fromEntries(Object.entries(record.roster).map(([id,p])=>[id,{...p,checkpoint:0}]))};
+  }
   if (record.schemaVersion !== 1 || record.levelVersion !== LEVEL_VERSION
     || !Number.isInteger(record.sector) || record.sector < 0 || record.sector >= SECTORS.length
     || !record.roster || typeof record.roster !== 'object') throw new Error('Incompatible save');

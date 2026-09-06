@@ -1,8 +1,8 @@
 export const DT = 1 / 60;
 export const SNAPSHOT_EVERY = 3;
 export const MAX_PLAYERS = 6;
-export const PROTOCOL = 1;
-export const LEVEL_VERSION = 1;
+export const PROTOCOL = 2;
+export const LEVEL_VERSION = 2;
 export const EMOTES = Object.freeze({ dance: 8, wave: 3, smoke: 9 });
 export const MOVE = Object.freeze({ walk: 5.8, sprint: 9, jump: 9, gravity: 24,
   dashSpeed: 19, dashDuration: 0.16, dashCooldown: 1.2, wallDuration: 1.15,

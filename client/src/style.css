@@ -7,3 +7,5 @@
 @media(max-width:1100px){.emote-bar{bottom:145px;left:20px}.keyboard-help{font-size:10px}.keyboard-help span{margin-right:8px}}
 @media(max-width:800px){.masthead{gap:8px}.connection{max-width:150px;font-size:10px;overflow-wrap:anywhere}.audio-controls summary{padding:9px 10px}.audio-controls summary span{display:none}.audio-panel{width:min(270px,calc(100vw - 40px))}.emote-bar{bottom:125px;left:50%;transform:translateX(-50%);padding:2px;white-space:nowrap}.emote-bar button{padding:7px 9px;font-size:12px;min-height:30px}.bottom-hud{bottom:180px}.interact-hint{bottom:255px}.wordmark small{display:none}}
 @media(max-width:420px){.wordmark{max-width:105px;font-size:11px}.connection{max-width:95px;font-size:9px;padding:6px}.masthead{padding:15px}}
+
+#graphics-quality{width:100%;background:#142b3d;color:#dbf5fa;border:1px solid #456378;border-radius:8px;padding:10px;margin:6px 0 16px;font:inherit}
