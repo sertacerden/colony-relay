@@ -1,12 +1,16 @@
-# Colony Relay
+# Mahalle Şenliği
 
-Terk edilmiş uzay kolonisi temalı, tarayıcıda çalışan **2–6 kişilik co-op parkur başlangıç projesi**. Tek oyuncu hareketleri deneyebilir; bulmacayı ve sektörleri tamamlamak için en az iki oyuncu gerekir.
+Stilize Dünya ortamında, **2–6 kişilik co-op parkur oyunu**. 25 modüler bölüm; mahalle çatıları, ağaçlar, nehir, sarkaçlar, dönen süpürücüler, görünmez labirentler ve komik tuzaklar. Tek oyuncu hareketleri deneyebilir; bölümler iki kişiyle çözülebilir ve bitişte bağlı tüm oyuncular buluşur.
 
-**Teslim edilen:** gerçek Three.js sahnesi, Rapier karakter motoru, sunucu otoriteli Socket.IO odaları, yerel hareket tahmini / düzeltmesi, FPS–TPS kamera, koşma / zıplama / dash / wall-run, üç modüler örnek sektör, zorunlu iki oyunculu terminal–köprü–kapı bulmacası, checkpoint ve kayıt adaptörleri.
+**Yeni:** Altı farklı karakter, altı abartılı hareket, düşük parlamalı PBR ışık, tamamen Türkçe oyuncu metinleri, tuzaklara tepki veren yüz arayüzü ve sesler. Mocapdata.com → GLB ve Rive entegrasyonları hazır; harici mocap klipleri / özel `.riv` tasarımı dahil değil. Yerleşik karakterler ve Canvas yüzü dosya indirmeden çalışır.
 
-**Kapsam:** Bu bir çalışan altyapı ve oynanabilir prototiptir. Üç örnek sektörün 1–2 saat sürdüğü iddia edilmez. 60–120 dakikalık tam oyun için 8 sektör / 24 modüllük içerik planı `docs/LEVEL_DESIGN.md` içindedir. Süre ve düşük donanım hedefi gerçek kullanıcı / cihaz oyun testleriyle doğrulanmalıdır.
+**Güncelleme:** Repo kökünde `client`, `shared`, `server`, **package.json ve package-lock.json** birlikte değişmeli; `tools` varlık doğrulama komutu içindir. Rive bağımlılığı eklendi. Derleme `npm ci --include=dev && npm run build`, başlatma `npm start`. Canlı Render servisi bu teslimde değiştirilmedi. Ağ/bölüm sürümü 3; açık sekmeleri yenile. Önceki kayıtların sektör numarası korunur, değişen bölüm içi geometri nedeniyle kayıt noktası ve bulmaca kilidi sıfırlanır.
 
-**Ses ve emote güncellemesi:** 72 BPM sakin ambient/lo-fi müzik, 15 olay efekti, ayrı müzik/efekt ayarları ve M ile susturma eklendi. 1: dans, 2: selam, 3: sigara emote'u; el hareketi, küçük sigara modeli ve duman parçacıkları dahil. Emote'lar sunucuda doğrulanıp diğer oyunculara gönderilir. Kurulum/güncelleme ayrıntıları: `docs/AUDIO_EMOTES.md`.
+- `docs/EARTH_UPDATE.md`: yeni davranışlar, ışık değerleri ve kurulum.
+- `docs/MOCAP_RIVE.md`: harici animasyon ve Rive dosyası hazırlama/bağlama iş akışı.
+- `docs/LEVEL_DESIGN.md`: 25 bölümün güncel karşılaşma kataloğu.
+
+**Kapsam:** Çalışan prototip ve geliştirme altyapısı. 60–120 dakika ve hedef cihaz FPS değerleri henüz gerçek ekiplerle ölçülmedi. Otomatik kontroller fizik/ağ kurallarını doğrular; görsel kalite ve eğlenceyi insan oyun testi değerlendirmelidir.
 
 ## Hızlı kurulum — Windows, macOS, Linux
 
@@ -41,7 +45,8 @@ Tarayıcı: **http://localhost:5173**
 | Q | 0,16 saniyelik dash; 1,2 saniye bekleme |
 | V | FPS / TPS geçişi |
 | E | Terminal etkileşimi; A için basılı tut |
-| 1 / 2 / 3 | Dans / selam / sigara; aynı tuşa tekrar basınca iptal |
+| 1 / 2 / 3 | Makarna dansı / selam / sigara; aynı tuşa tekrar basınca iptal |
+| 4 / 5 / 6 | İnsan pervanesi / bozuk robot / jöle dizler |
 | M | Tüm sesleri aç / kapat |
 | Esc | Fareyi bırak / menü |
 
@@ -57,16 +62,28 @@ npm start
 
 Üretim derlemesinden sonra tek Node süreci hem arayüzü hem Socket.IO'yu **http://localhost:3001** üzerinden sunar. `client/dist/` derlemede oluşur. Geliştirme sunucusu üretim dağıtımı için kullanılmamalıdır.
 
-Bu teslimde Node 24.19.0 ile üretim derlemesi ve 15 otomatik test geçti. Testler gerçek yerel Socket.IO istemcileri, Rapier fizik dünyaları ve dosya kayıt adaptörü kullanır. Ek olarak 64 saniyelik müzik ve 15 efekt offline ses motorunda üretildi; sonlu ve kırpılmayan ses örnekleri ile ses düğümü temizliği doğrulandı. Bu kontrol gerçek tarayıcıda işitsel inceleme yerine geçmez. Tarayıcı görsel/işitsel testi, gerçek WAN gecikme testi, düşük donanım ölçümü, Docker build ve AWS'ye canlı yazma yapılmadı.
+Bu teslimde Node 24.19.0 ile üretim derlemesi ve 33 otomatik test geçti. Testler gerçek yerel Socket.IO istemcileri, Rapier fizik dünyaları ve dosya kayıt adaptörü kullanır. Önceki sürümde ayrıca ses güncellemesinde 64 saniyelik müzik ve 15 efekt offline ses motorunda üretildi; sonlu ve kırpılmayan ses örnekleri ile ses düğümü temizliği doğrulandı. Bu kontrol gerçek tarayıcıda işitsel inceleme yerine geçmez. Tarayıcı görsel/işitsel testi, gerçek WAN gecikme testi, düşük donanım ölçümü, Docker build ve AWS'ye canlı yazma yapılmadı.
 
 Test kapsamı:
+
+- Sarkaç ve süpürücü temasları, savrulmanın duvarla çarpışması ve ağ yeniden oynatması.
+- Ortak zemin düşmesi, otomatik geri gelme, basılı tuşla tekrar tetikleyememe.
+- Görsel sahte platformdan fiziksel düşme; bütün görünmez labirentlerin yürüyerek çözümü.
+- Karakter seçiminin ağda taşınması, izin verilen karakter/animasyon sınırları, Türkçe metin kataloğu.
+
+- 25 benzersiz rota; her bulmaca için 2, 3, 4, 5 ve 6 oyunculu oda doğrulaması.
+- Üç saniyelik köprüde dash kanıtı, süre bitimi, basılı E ile süre uzatılamaması.
+- Plakalarda farklı oyuncu zorunluluğu; erken ayrılmada dolumun sıfırlanması.
+- Taşıyıcı üzerinde fiziksel yolculuk, terminal bırakılınca durma, B ile kalıcı dönüş.
+- Her rota inişinin önceki platformdan fiziksel erişimi (hareketli platformların orta fazında; lazer zamanlaması ayrı test). Bu, bütün kampanyanın uçtan uca insan oyun testi değildir.
+- Hızlı hareketlerde lazer teması ve operatör lazer kapatması; eski kayıt geçişi.
 
 - 6 bağlantı kabulü; 7. bağlantının reddedilmesi; oda izolasyonu; kimlikle yeniden katılma.
 - Geçersiz input, eski epoch, istemciden pozisyon gönderme denemeleri.
 - Kapsül zemine oturma, zıplama, duvara dash çarpışması, çapraz hareket hız sınırı.
 - Wall-run süresi ve dash cooldown; sunucu durumundan yeniden oynatılan hareketin eşleşmesi.
 - Uzak terminal aktivasyonunun reddi, zaman aşımı, operatör kopması, tek oyunculu çözümün reddi.
-- Açılan köprü / kapı collider durumları; her örnek sektörde iki oyuncunun fiziksel köprü geçişi.
+- Açılan köprü / kapı collider durumları; her terminal-köprü sektöründe iki oyuncunun fiziksel geçişi.
 - Atomik kayıt, yeniden okuma, eski sürümle yazma çatışması, uyumsuz kayıt reddi.
 - Emote süreleri, havada kullanımın reddi, hareketle/etkileşimle iptal ve başka Socket.IO istemcisinde görünmesi.
 - Ses olaylarının bir kez tetiklenmesi, yeniden bağlantıda eski seslerin çalmaması ve ayarların saklanması.
@@ -106,7 +123,7 @@ Varsayılan `SAVE_DRIVER=file`; AWS hesabı gerekmez. `server/data/ODA-KODU.json
 - Aktif oturumda yaklaşık 15 saniyelik periyodik kayıt da vardır.
 - Fizik koordinatları her frame veritabanına yazılmaz; sektör, checkpoint, bulmaca sonucu ve roster kaydedilir.
 - Kayıt başarısızsa HUD bunu gösterir ve sunucu 10 saniye sonra yeniden dener. Başarısız kayıt başarı diye gösterilmez.
-- Server yeniden başlatıldığında aynı oda koduyla kayıt yüklenir. Başka sektör sürümüne ait kayıt sessizce kullanılmaz.
+- Server yeniden başlatıldığında aynı oda koduyla kayıt yüklenir. Eski 1. ve 2. sürüm kayıtları 3. sürüme taşınır: oda, kayıt revizyonu ve sektör indeksi korunur, değişen geometri nedeniyle checkpoint ve bulmaca kilidi sıfırlanır. Bilinmeyen sürümler reddedilir.
 - Geçici köprü enerjisi yeniden yüklemede sıfırlanır; kalıcı kilit korunur.
 - Misafir anahtarı `sessionStorage` içindedir; sayfa yenilemede kimlik korunur. Sekmeyi kapatıp depolamasını kaybetmek kişisel kimliği kaybettirir; oda ilerlemesi kalır. Tam hesap sistemi bu prototipte yoktur.
 - Kopan oyuncunun yeri 30 saniye tutulur. Sonra yuva boşalır; ekibin kalan kısmı devam edebilir.
@@ -140,15 +157,26 @@ colony-relay/
       input.js            — klavye, fare kilidi, dokunmatik
       audio.js            — özgün ambient müzik, efektler, ses ayarları
       audio-events.js     — ses olayları; ağ düzeltmelerinde tekrar çalmayı engeller
-      emotes.js           — dans, selam, sigara pozları
+      emotes.js           — altı komik hareketin pozları
+      asset-config.js     — isteğe bağlı GLB/Rive yolları ve klip eşlemeleri
+      model-animation.js  — model yükleme, iskelet klonları ve AnimationMixer
+      expressive-ui.js    — tepki veren rehber yüzü
+      rive-driver.js      — yerel WASM, veri bağlama, isteğe bağlı Rive
       camera.js           — FPS/TPS ve kamera engel kontrolü
-      world.js            — low-poly sahne ve prosedürel avatar animasyonu
+      world.js            — PBR sahne, hareketli varlıklar ve avatar animasyonu
+      graphics.js         — dokular, ortam ışığı, Bloom/SSAO/gölge kalite sistemi
       network.js          — bağlantı, input batch, remote interpolation
       style.css           — responsive görev ekranı ve HUD
+    public/
+      models/             — isteğe bağlı GLB modelleri
+      ui/                 — isteğe bağlı Rive dosyası
     dist/                 — npm run build çıktısı; ZIP içinde yok
   shared/
     config.js             — tick ve hareket sabitleri
-    levels.js             — ortak modüler dünya tanımı
+    levels.js             — 25 bölümün ortak modüler dünya tanımı
+    dynamics.js           — ortak platform hareketi ve lazer zamanlaması
+    pranks.js             — sarkaç, süpürücü, görünmez duvar ve şaka kuralları
+    characters.js         — karakterler ve Türkçe hareket/tepki metinleri
     protocol.js           — ağ input doğrulaması
     simulation.js         — Rapier dünya + CharacterMotor
   server/
@@ -158,11 +186,15 @@ colony-relay/
       puzzle.js           — iki oyunculu terminal/köprü/kapı
       storage.js          — dosya ve DynamoDB adaptörleri
     data/                 — çalışma sırasında oluşur; ZIP içinde yok
+  tools/
+    check-assets.mjs      — GLB klip ve Rive dosya kontrolü
   infra/
     dynamodb.yaml
   docs/
     ARCHITECTURE.md
     LEVEL_DESIGN.md
+    EARTH_UPDATE.md
+    MOCAP_RIVE.md
     AUDIO_EMOTES.md        — yeni kontroller, ses tasarımı, GitHub/Render güncellemesi
     CORE_CODE.md           — temel kontrolcü/kamera/ağ/bulmaca kodlarının tam dökümü
   tests/
@@ -173,6 +205,10 @@ colony-relay/
     storage.test.js
     audio-events.test.js
     emotes.test.js
+    campaign.test.js
+    routes.test.js
+    pranks.test.js
+    localization.test.js
 ```
 
 `docs/CORE_CODE.md`, kaynak dosyalarından bu teslim sırasında üretilmiştir. Geliştirme sırasında asıl kod ilgili `.js` dosyalarıdır.
