@@ -58,6 +58,9 @@ export class RemoteBuffer {
     const p = a.state.position, q = b.state.position;
     const angle = Math.atan2(Math.sin(b.state.yaw - a.state.yaw), Math.cos(b.state.yaw - a.state.yaw));
     return { ...b.state, position: { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t,
-      z: p.z + (q.z - p.z) * t }, yaw: a.state.yaw + angle * Math.min(t, 1) };
+      z: p.z + (q.z - p.z) * t }, yaw: a.state.yaw + angle * Math.min(t, 1),
+      emoteLeft: a.state.emote === b.state.emote
+        ? Math.max(0, (a.state.emoteLeft || 0) + ((b.state.emoteLeft || 0) - (a.state.emoteLeft || 0)) * t)
+        : b.state.emoteLeft };
   }
 }

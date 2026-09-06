@@ -41,6 +41,12 @@ test('6 real Socket.IO clients, seventh rejected, rooms isolated, reconnect rest
     await new Promise(resolve => setTimeout(resolve, 30));
     assert.equal(p.queue.length, 1); room.step(); assert.equal(p.motor.state.seq, 1);
     assert.equal(leaked, false);
+    for (let i = 0; i < 90; i++) room.step();
+    players[0].socket.emit('inputs', [{ ...command, seq: 2, z: 0, emote: 'dance' }]);
+    await new Promise(resolve => setTimeout(resolve, 30)); room.step();
+    const emoteSnapshot = new Promise(resolve => players[1].socket.once('snapshot', resolve));
+    game.io.to('TEST01').emit('snapshot', room.snapshot());
+    assert.equal((await emoteSnapshot).players.find(member => member.id === p.id).state.emote, 'dance');
     const oldId = players[0].reply.id;
     players[0].socket.disconnect(); await new Promise(resolve => setTimeout(resolve, 30));
     const rejoined = await open(0); assert.equal(rejoined.reply.ok, true); assert.equal(rejoined.reply.id, oldId);

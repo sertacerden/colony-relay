@@ -6,6 +6,7 @@ export class Input {
     const clear = () => { this.keys.clear(); this.pulses.clear(); };
     window.addEventListener('keydown', e => {
       if (!this.enabled) return;
+      if (e.target.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       if (['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyE', 'KeyQ', 'KeyV'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (!e.repeat) this.pulses.add(e.code);
@@ -53,7 +54,9 @@ export class Input {
       z: this.enabled ? Number(k.has('KeyS')) - Number(k.has('KeyW')) : 0,
       sprint: this.enabled && (k.has('ShiftLeft') || k.has('ShiftRight')),
       jump: this.enabled && this.pulses.has('Space'), dash: this.enabled && this.pulses.has('KeyQ'),
-      interact: this.enabled && k.has('KeyE') };
+      interact: this.enabled && k.has('KeyE'),
+      emote: this.enabled ? this.pulses.has('Digit1') ? 'dance' : this.pulses.has('Digit2') ? 'wave'
+        : this.pulses.has('Digit3') ? 'smoke' : null : null };
     this.pulses.clear(); return command;
   }
   async capture() {

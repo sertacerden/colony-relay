@@ -7,7 +7,19 @@
   <canvas id="world" aria-label="Üç boyutlu uzay kolonisi parkuru"></canvas>
   <header class="masthead"><a class="brand" href="/" aria-label="Colony Relay ana ekran">C<span>R</span><i></i></a>
     <div class="wordmark">COLONY RELAY<small>KEPLER–09 / KURTARMA GÖREVİ</small></div>
-    <div class="connection" id="connection" role="status">BAĞLANTI BEKLENİYOR</div></header>
+    <div class="connection" id="connection" role="status">BAĞLANTI BEKLENİYOR</div>
+    <details id="audio-controls" class="audio-controls">
+      <summary aria-label="Ses ayarları">♫ <span>Ses</span></summary>
+      <div class="audio-panel glass">
+        <strong>Koloninin sesi</strong><p>Sakin ritimler, uzak sinyaller.</p>
+        <label for="music-volume">Müzik <output id="music-value" for="music-volume">38%</output></label>
+        <input id="music-volume" type="range" min="0" max="100" value="38"/>
+        <label for="effects-volume">Efektler <output id="effects-value" for="effects-volume">65%</output></label>
+        <input id="effects-volume" type="range" min="0" max="100" value="65"/>
+        <button id="mute-audio" class="secondary" aria-pressed="false">Sesi kapat · M</button>
+        <small id="audio-note" role="status">Müzik ilk tıklamanla başlar.</small>
+      </div>
+    </details></header>
   <main id="lobby" class="lobby">
     <section class="brief"><div class="eyebrow"><span>01 / 03</span> SİNYAL YENİDEN ALINDI</div>
       <h1>Kimseyi<br/>geride <em>bırakma.</em></h1>
@@ -29,10 +41,11 @@
     <div class="room-card glass"><span>ODA KODU</span><button id="copy-room" title="Oda kodunu kopyala"></button><p id="team-count">1 / 6 gezgin</p><ul id="roster"></ul></div>
     <div id="crosshair" aria-hidden="true">+</div><div id="interact-hint" class="interact-hint" role="status"></div>
     <div class="bottom-hud glass"><div><span id="camera-mode">TPS</span><small id="motion">IDLE</small></div><div class="dash-status"><span>DASH</span><div><i id="dash-meter"></i></div></div><div><span id="network-stat">— ms</span><small id="save-status">Kaydediliyor</small></div></div>
-    <div class="keyboard-help">W A S D <span>Hareket</span> SHIFT <span>Koş / Wall-run</span> SPACE <span>Zıpla</span> Q <span>Dash</span> V <span>Kamera</span> E <span>Terminal</span> ESC <span>Menü</span></div>
+    <div class="keyboard-help">W A S D <span>Hareket</span> SHIFT <span>Koş / Wall-run</span> SPACE <span>Zıpla</span> Q <span>Dash</span> V <span>Kamera</span> E <span>Terminal</span> 1–3 <span>Emote</span> M <span>Ses</span> ESC <span>Menü</span></div>
+    <div class="emote-bar glass" aria-label="Karakter emote'ları"><button data-emote="Digit1"><kbd>1</kbd> Dans</button><button data-emote="Digit2"><kbd>2</kbd> Selam</button><button data-emote="Digit3"><kbd>3</kbd> Sigara</button></div>
     <div id="touch-controls"><div class="dpad"><button data-hold="KeyW">↑</button><div><button data-hold="KeyA">←</button><button data-hold="KeyS">↓</button><button data-hold="KeyD">→</button></div></div><div class="actions"><button data-hold="ShiftLeft">KOŞ</button><button data-pulse="Space">ZIPLA</button><button data-pulse="KeyQ">DASH</button><button data-hold="KeyE">E</button><button id="touch-camera">V</button><button id="touch-menu">Ⅱ</button></div></div>
   </section>
-  <div id="pause" class="modal" hidden><section class="glass"><span class="eyebrow">COLONY RELAY</span><h2 id="pause-title">Görev sürüyor</h2><p id="pause-copy">Diğer gezginler oynamaya devam eder.</p><button id="resume" class="primary">Oyuna dön ↗</button><button id="leave" class="secondary">Görevden ayrıl</button></section></div>
+  <div id="pause" class="modal" hidden><section class="glass"><span class="eyebrow">COLONY RELAY</span><h2 id="pause-title">Görev sürüyor</h2><p id="pause-copy">Diğer gezginler oynamaya devam eder.</p><div class="pause-emotes"><button data-emote="Digit1">1 · Dans</button><button data-emote="Digit2">2 · Selam</button><button data-emote="Digit3">3 · Sigara</button></div><p class="emote-help">Zemindeyken kullan. Hareket edince kesilir.</p><button id="resume" class="primary">Oyuna dön ↗</button><button id="leave" class="secondary">Görevden ayrıl</button></section></div>
   <div id="boot" class="boot" role="status">KOLONİ SİSTEMLERİ AÇILIYOR…</div>
   <script type="module" src="/src/main.js"></script>
 </body></html>

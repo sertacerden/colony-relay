@@ -7,6 +7,8 @@ import { WorldView } from './world.js';
 import { CameraRig } from './camera.js';
 import { Input } from './input.js';
 import { Network, RemoteBuffer } from './network.js';
+import { GameAudio } from './audio.js';
+import { GameAudioEvents } from './audio-events.js';
 
 const $ = id => document.getElementById(id);
 const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 2.4;
@@ -16,15 +18,29 @@ let playerId = null, roomEpoch = null, seq = 0, pending = [], connectedOnce = fa
 let accumulator = 0, lastFrame = performance.now(), lastHud = 0, latency = 0;
 const remote = new Map(), visualError = new THREE.Vector3(), renderPosition = new THREE.Vector3();
 const btns = [...document.querySelectorAll('#join-form button')];
+const sound = new GameAudio();
+const soundEvents = new GameAudioEvents(name => sound.play(name));
+function paintAudioSettings() {
+  for (const key of ['music', 'effects']) {
+    $(`${key}-volume`).value = Math.round(sound.settings[key] * 100);
+    $(`${key}-value`).textContent = `${Math.round(sound.settings[key] * 100)}%`;
+  }
+  $('mute-audio').textContent = sound.settings.muted ? 'Sesi aç · M' : 'Sesi kapat · M';
+  $('mute-audio').setAttribute('aria-pressed', String(sound.settings.muted));
+}
+function toggleMute() { sound.set('muted', !sound.settings.muted); paintAudioSettings(); }
+function toggleCamera() { rig.toggle(); sound.play('camera'); }
 function setBusy(busy) { btns.forEach(button => button.disabled = busy); }
 function pause() {
   if (!playerId) return;
   input.enabled = false; input.clear(); $('pause').hidden = false;
+  sound.duck(true);
   if (document.pointerLockElement) document.exitPointerLock();
 }
 function resume() {
   if (!net.joined) return;
   $('pause').hidden = true; input.enabled = true; input.capture();
+  sound.duck(false); $('audio-controls').open = false;
 }
 function failure(message) {
   $('error').textContent = message; setBusy(false);
@@ -35,6 +51,8 @@ function failure(message) {
 function updateSnapshot(next, reset = false) {
   const self = next.players.find(p => p.id === playerId);
   if (!self) return;
+  // Snapshot changes alone trigger world cues; prediction replay stays silent.
+  soundEvents.snapshot(next, playerId, reset);
   const receivedAt = performance.now();
   const changedLevel = !scene || roomEpoch !== next.epoch || level.index !== next.sector;
   if (changedLevel) {
@@ -90,7 +108,7 @@ function paintHud(now) {
   const remaining = snapshot.puzzle.latched ? 8 : Math.max(0, snapshot.puzzle.activeUntil - time);
   $('bridge-time').style.width = `${remaining / 8 * 100}%`;
   $('camera-mode').textContent = rig.thirdPerson ? 'TPS' : 'FPS';
-  $('motion').textContent = motor.state.animation.toUpperCase();
+  $('motion').textContent = ({ dance: 'DANS', wave: 'SELAM', smoke: 'SİGARA' })[motor.state.emote] || motor.state.animation.toUpperCase();
   $('dash-meter').style.width = `${(1 - motor.state.cooldown / MOVE.dashCooldown) * 100}%`;
   $('network-stat').textContent = net.joined ? `${latency} ms · onay` : 'BAĞLANTI YOK';
   $('save-status').textContent = { saved: 'İlerleme kaydedildi', saving: 'Kaydediliyor…', error: 'Kayıt başarısız · tekrar denenecek', unsaved: 'Henüz kaydedilmedi' }[snapshot.saveStatus];
@@ -119,7 +137,10 @@ function frame(now) {
       if (pending.length < 90) {
         const command = input.sample(++seq, motor.state.epoch);
         pending.push({ command, sentAt: now }); net.send(command);
+        const before = { ...motor.state };
         motor.step(command); scene.step();
+        soundEvents.movement(before, motor.state, command, now);
+        if (command.emote && motor.state.emote) rig.thirdPerson = true;
       }
       accumulator -= DT;
     }
@@ -153,13 +174,14 @@ function enter(create) {
   const room = create ? [...crypto.getRandomValues(new Uint8Array(6))].map(n => alphabet[n % alphabet.length]).join('') : $('room').value.trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(room)) return failure('6 karakterli oda kodunu yaz.');
   $('room').value = room; $('error').textContent = ''; setBusy(true);
+  sound.play('ui');
   try { net.connect({ room, token: token(), name: $('name').value, create }); }
   catch { failure('Tarayıcı oturum depolaması kullanılamıyor. Normal bir sekmede tekrar dene.'); }
 }
 async function boot() {
   await initPhysics();
   view = new WorldView($('world')); view.load(buildLevel(0)); rig = new CameraRig(view.camera);
-  input = new Input($('world'), () => rig.toggle(), pause);
+  input = new Input($('world'), toggleCamera, pause);
   net = new Network({
     onStatus: message => { $('connection').textContent = message; }, onError: failure,
     onJoin: reply => {
@@ -175,13 +197,36 @@ async function boot() {
   $('resume').addEventListener('click', resume);
   $('leave').addEventListener('click', () => { net.leave(); location.reload(); });
   $('world').addEventListener('click', () => { if (input.enabled) input.capture(); });
-  $('touch-camera').addEventListener('click', () => rig.toggle());
+  $('touch-camera').addEventListener('click', toggleCamera);
   $('touch-menu').addEventListener('click', pause);
   $('copy-room').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(snapshot.room); $('connection').textContent = 'ODA KODU KOPYALANDI'; }
     catch { $('connection').textContent = `ODA: ${snapshot.room}`; }
   });
   $('room').value = (new URLSearchParams(location.search).get('room') || '').slice(0, 6);
+  paintAudioSettings();
+  const unlockAudio = () => {
+    sound.unlock().then(ok => { $('audio-note').textContent = ok ? 'M · Tüm sesleri aç / kapat' : 'Sesi başlatmak için tekrar tıkla.'; });
+  };
+  document.addEventListener('pointerdown', unlockAudio, { capture: true });
+  document.addEventListener('keydown', e => {
+    if (!e.repeat) unlockAudio();
+    if (e.code === 'KeyM' && !e.repeat && !e.target.closest?.('input,textarea,select,[contenteditable="true"]')) {
+      e.preventDefault(); toggleMute();
+    }
+  });
+  $('mute-audio').addEventListener('click', toggleMute);
+  for (const key of ['music', 'effects']) $(`${key}-volume`).addEventListener('input', e => {
+    sound.set(key, Number(e.target.value) / 100); paintAudioSettings();
+  });
+  $('audio-controls').addEventListener('toggle', () => { if ($('audio-controls').open && input.enabled) pause(); });
+  document.querySelectorAll('[data-emote]').forEach(button => button.addEventListener('click', () => {
+    if (!net.joined) return;
+    resume(); input.pulses.add(button.dataset.emote); sound.play('ui');
+  }));
+  document.addEventListener('visibilitychange', () => sound.setHidden(document.hidden));
+  window.addEventListener('pagehide', () => sound.setHidden(true));
+  window.addEventListener('pageshow', () => sound.setHidden(document.hidden));
   $('boot').hidden = true; requestAnimationFrame(frame);
 }
 boot().catch(error => { console.error(error); $('boot').textContent = '3D motoru başlatılamadı. WebGL2 ve donanım hızlandırmasının açık olduğunu kontrol et.'; });

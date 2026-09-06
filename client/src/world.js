@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { emotePose } from './emotes.js';
 export class WorldView {
   constructor(canvas) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'low-power' });
@@ -14,6 +15,9 @@ export class WorldView {
     const sun = new THREE.DirectionalLight('#c9fbff', 3); sun.position.set(20, 40, 10); this.scene.add(sun);
     const fill = new THREE.DirectionalLight('#768bff', 1.5); fill.position.set(-30, 5, -30); this.scene.add(fill);
     this.cube = new THREE.BoxGeometry(1, 1, 1);
+    this.puffGeometry = new THREE.IcosahedronGeometry(1, 0);
+    this.cigaretteMaterial = new THREE.MeshStandardMaterial({ color: '#dedbcf', roughness: 1 });
+    this.emberMaterial = new THREE.MeshBasicMaterial({ color: '#fb9860' });
     this.materials = {
       floor: new THREE.MeshStandardMaterial({ color: '#233c50', roughness: .9, metalness: .25 }),
       wall: new THREE.MeshStandardMaterial({ color: '#355369', roughness: .8 }),
@@ -108,7 +112,21 @@ export class WorldView {
     this.box(group, { x: 0, y: .51, z: -.225 }, { x: .34, y: .15, z: .03 }, this.materials.dark);
     const left = this.box(group, { x: -.15, y: -.59, z: 0 }, { x: .2, y: .44, z: .22 }, mat);
     const right = this.box(group, { x: .15, y: -.59, z: 0 }, { x: .2, y: .44, z: .22 }, mat);
-    group.userData = { legs: [left, right], material: mat }; this.scene.add(group); this.players.set(id, group); return group;
+    const arms = [-1, 1].map(side => {
+      const pivot = new THREE.Group(); pivot.position.set(side * .36, .22, 0); group.add(pivot);
+      this.box(pivot, { x: 0, y: -.22, z: 0 }, { x: .16, y: .46, z: .18 }, mat);
+      return pivot;
+    });
+    const cigarette = new THREE.Group(); cigarette.position.set(0, -.43, -.08); arms[1].add(cigarette);
+    this.box(cigarette, { x: 0, y: 0, z: -.055 }, { x: .027, y: .027, z: .16 }, this.cigaretteMaterial);
+    this.box(cigarette, { x: 0, y: 0, z: -.14 }, { x: .029, y: .029, z: .015 }, this.emberMaterial);
+    cigarette.visible = false;
+    const puffMaterial = new THREE.MeshBasicMaterial({ color: '#c6d1db', transparent: true, opacity: .15, depthWrite: false });
+    const puffs = Array.from({ length: 4 }, () => {
+      const puff = new THREE.Mesh(this.puffGeometry, puffMaterial); puff.visible = false; group.add(puff); return puff;
+    });
+    group.userData = { legs: [left, right], arms, cigarette, puffs, puffMaterial, material: mat };
+    this.scene.add(group); this.players.set(id, group); return group;
   }
   pose(avatar, state, time) {
     avatar.position.copy(state.position); avatar.rotation.y = state.yaw;
@@ -116,10 +134,29 @@ export class WorldView {
     const moving = state.animation === 'walk' || state.animation === 'run';
     const swing = moving ? Math.sin(time * (state.animation === 'run' ? 19 : 12)) * .65 : state.animation === 'jump' ? .3 : 0;
     avatar.userData.legs[0].rotation.x = swing; avatar.userData.legs[1].rotation.x = -swing;
+    const { arms, cigarette, puffs } = avatar.userData;
+    arms[0].rotation.set(-swing * .7, 0, -.08); arms[1].rotation.set(swing * .7, 0, .08);
+    cigarette.visible = false; puffs.forEach(p => p.visible = false);
+    const pose = emotePose(state);
+    if (pose) {
+      const w = pose.weight;
+      avatar.position.y += pose.lift * w; avatar.rotation.z = pose.lean * w; avatar.rotation.y += pose.turn * w;
+      avatar.userData.legs[0].rotation.x = pose.leftLeg * w; avatar.userData.legs[1].rotation.x = pose.rightLeg * w;
+      for (const [i, rotation] of [pose.leftArm, pose.rightArm].entries()) arms[i].rotation.set(...rotation.map(n => n * w));
+      cigarette.visible = pose.smoke && w > .1;
+      if (pose.smoke) puffs.forEach((puff, i) => {
+        const age = pose.puffPhase - 2.05 - i * .22;
+        puff.visible = age > 0 && age < 1.2 && w > .2;
+        if (puff.visible) {
+          puff.position.set(.09 + Math.sin(age * 3 + i) * .07, .49 + age * .35, -.42 - age * .17);
+          puff.scale.setScalar(.025 + age * .07);
+        }
+      });
+    }
   }
   removePlayer(id) {
     const avatar = this.players.get(id); if (!avatar) return;
-    this.scene.remove(avatar); avatar.userData.material.dispose(); this.players.delete(id);
+    this.scene.remove(avatar); avatar.userData.material.dispose(); avatar.userData.puffMaterial.dispose(); this.players.delete(id);
   }
   render() { this.renderer.render(this.scene, this.camera); }
 }

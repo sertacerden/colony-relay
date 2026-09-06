@@ -1,4 +1,4 @@
-import { PROTOCOL } from './config.js';
+import { PROTOCOL, EMOTES } from './config.js';
 export function parseJoin(v) {
   if (!v || v.protocol !== PROTOCOL || typeof v.room !== 'string'
     || !/^[A-Z0-9]{6}$/.test(v.room) || typeof v.token !== 'string'
@@ -10,6 +10,7 @@ export function parseInput(v, epoch) {
     || !Number.isFinite(v.x) || !Number.isFinite(v.z) || !Number.isFinite(v.yaw)
     || Math.abs(v.x) > 1 || Math.abs(v.z) > 1 || Math.abs(v.yaw) > Math.PI * 2) return null;
   for (const key of ['sprint', 'jump', 'dash', 'interact']) if (typeof v[key] !== 'boolean') return null;
+  if (v.emote != null && (typeof v.emote !== 'string' || !Object.hasOwn(EMOTES, v.emote))) return null;
   return { seq: v.seq, epoch, x: v.x, z: v.z, yaw: v.yaw,
-    sprint: v.sprint, jump: v.jump, dash: v.dash, interact: v.interact };
+    sprint: v.sprint, jump: v.jump, dash: v.dash, interact: v.interact, emote: v.emote ?? null };
 }

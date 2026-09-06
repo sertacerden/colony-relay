@@ -6,6 +6,8 @@ Terk edilmiş uzay kolonisi temalı, tarayıcıda çalışan **2–6 kişilik co
 
 **Kapsam:** Bu bir çalışan altyapı ve oynanabilir prototiptir. Üç örnek sektörün 1–2 saat sürdüğü iddia edilmez. 60–120 dakikalık tam oyun için 8 sektör / 24 modüllük içerik planı `docs/LEVEL_DESIGN.md` içindedir. Süre ve düşük donanım hedefi gerçek kullanıcı / cihaz oyun testleriyle doğrulanmalıdır.
 
+**Ses ve emote güncellemesi:** 72 BPM sakin ambient/lo-fi müzik, 15 olay efekti, ayrı müzik/efekt ayarları ve M ile susturma eklendi. 1: dans, 2: selam, 3: sigara emote'u; el hareketi, küçük sigara modeli ve duman parçacıkları dahil. Emote'lar sunucuda doğrulanıp diğer oyunculara gönderilir. Kurulum/güncelleme ayrıntıları: `docs/AUDIO_EMOTES.md`.
+
 ## Hızlı kurulum — Windows, macOS, Linux
 
 Node.js **22.12+** (22 veya 24 serisi) ve npm gerekir. ZIP'i aç; terminali `package.json` bulunan `colony-relay` klasöründe çalıştır.
@@ -39,6 +41,8 @@ Tarayıcı: **http://localhost:5173**
 | Q | 0,16 saniyelik dash; 1,2 saniye bekleme |
 | V | FPS / TPS geçişi |
 | E | Terminal etkileşimi; A için basılı tut |
+| 1 / 2 / 3 | Dans / selam / sigara; aynı tuşa tekrar basınca iptal |
+| M | Tüm sesleri aç / kapat |
 | Esc | Fareyi bırak / menü |
 
 Dokunmatik cihazlarda yön, koş, zıpla, dash, E ve kamera düğmeleri görünür; boş oyun alanını sürüklemek kamerayı döndürür. Arayüz responsive'dir. Dokunmatik parkur dengesi ve gerçek mobil GPU performansı test edilmemiştir.
@@ -53,7 +57,7 @@ npm start
 
 Üretim derlemesinden sonra tek Node süreci hem arayüzü hem Socket.IO'yu **http://localhost:3001** üzerinden sunar. `client/dist/` derlemede oluşur. Geliştirme sunucusu üretim dağıtımı için kullanılmamalıdır.
 
-Bu teslimde Node 24.19.0 ile üretim derlemesi ve 10 otomatik test geçti. Testler gerçek yerel Socket.IO istemcileri, Rapier fizik dünyaları ve dosya kayıt adaptörü kullanır. Tarayıcı görsel testi, gerçek WAN gecikme testi, düşük donanım ölçümü, Docker build ve AWS'ye canlı yazma yapılmadı.
+Bu teslimde Node 24.19.0 ile üretim derlemesi ve 15 otomatik test geçti. Testler gerçek yerel Socket.IO istemcileri, Rapier fizik dünyaları ve dosya kayıt adaptörü kullanır. Ek olarak 64 saniyelik müzik ve 15 efekt offline ses motorunda üretildi; sonlu ve kırpılmayan ses örnekleri ile ses düğümü temizliği doğrulandı. Bu kontrol gerçek tarayıcıda işitsel inceleme yerine geçmez. Tarayıcı görsel/işitsel testi, gerçek WAN gecikme testi, düşük donanım ölçümü, Docker build ve AWS'ye canlı yazma yapılmadı.
 
 Test kapsamı:
 
@@ -64,6 +68,8 @@ Test kapsamı:
 - Uzak terminal aktivasyonunun reddi, zaman aşımı, operatör kopması, tek oyunculu çözümün reddi.
 - Açılan köprü / kapı collider durumları; her örnek sektörde iki oyuncunun fiziksel köprü geçişi.
 - Atomik kayıt, yeniden okuma, eski sürümle yazma çatışması, uyumsuz kayıt reddi.
+- Emote süreleri, havada kullanımın reddi, hareketle/etkileşimle iptal ve başka Socket.IO istemcisinde görünmesi.
+- Ses olaylarının bir kez tetiklenmesi, yeniden bağlantıda eski seslerin çalmaması ve ayarların saklanması.
 
 ## Aynı Wi-Fi ve internet üzerinden birlikte oynama
 
@@ -132,6 +138,9 @@ colony-relay/
     src/
       main.js             — oyun döngüsü, tahmin, reconciliation, HUD
       input.js            — klavye, fare kilidi, dokunmatik
+      audio.js            — özgün ambient müzik, efektler, ses ayarları
+      audio-events.js     — ses olayları; ağ düzeltmelerinde tekrar çalmayı engeller
+      emotes.js           — dans, selam, sigara pozları
       camera.js           — FPS/TPS ve kamera engel kontrolü
       world.js            — low-poly sahne ve prosedürel avatar animasyonu
       network.js          — bağlantı, input batch, remote interpolation
@@ -154,6 +163,7 @@ colony-relay/
   docs/
     ARCHITECTURE.md
     LEVEL_DESIGN.md
+    AUDIO_EMOTES.md        — yeni kontroller, ses tasarımı, GitHub/Render güncellemesi
     CORE_CODE.md           — temel kontrolcü/kamera/ağ/bulmaca kodlarının tam dökümü
   tests/
     physics.test.js
@@ -161,6 +171,8 @@ colony-relay/
     traversal.test.js
     network.test.js
     storage.test.js
+    audio-events.test.js
+    emotes.test.js
 ```
 
 `docs/CORE_CODE.md`, kaynak dosyalarından bu teslim sırasında üretilmiştir. Geliştirme sırasında asıl kod ilgili `.js` dosyalarıdır.

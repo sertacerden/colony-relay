@@ -1,5 +1,5 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import { DT, MOVE } from './config.js';
+import { DT, MOVE, EMOTES } from './config.js';
 export { RAPIER };
 let initialized;
 export function initPhysics() { return initialized ??= RAPIER.init(); }
@@ -32,7 +32,7 @@ export class PhysicsScene {
 export function initialState(position, epoch = 0) {
   return { position: { ...position }, vy: 0, grounded: false, coyote: 0,
     dashLeft: 0, cooldown: 0, dashX: 0, dashZ: -1, wallLeft: MOVE.wallDuration,
-    yaw: 0, animation: 'idle', epoch, seq: 0 };
+    yaw: 0, animation: 'idle', emote: null, emoteLeft: 0, epoch, seq: 0 };
 }
 
 /** Shared by authoritative server and local prediction. All times in seconds. */
@@ -118,6 +118,16 @@ export class CharacterMotor {
     if (s.grounded && s.vy < 0 || desired.y > 0 && corrected.y < desired.y * 0.5) s.vy = 0;
     s.animation = dashing ? 'dash' : wallRunning ? 'wallrun' : !s.grounded ? 'jump'
       : moving ? (input.sprint ? 'run' : 'walk') : 'idle';
+    s.emoteLeft = Math.max(0, (s.emoteLeft || 0) - dt);
+    if (!s.emoteLeft || moving || input.jump || input.dash || input.interact || !s.grounded) {
+      s.emote = null; s.emoteLeft = 0;
+    }
+    if (Object.hasOwn(EMOTES, input.emote) && s.grounded && !moving
+      && !input.jump && !input.dash && !input.interact && !dashing) {
+      // A repeated press toggles the emote off; durations cannot be supplied by clients.
+      s.emote = s.emote === input.emote ? null : input.emote;
+      s.emoteLeft = s.emote ? EMOTES[s.emote] : 0;
+    }
     if (input.seq) s.seq = input.seq;
     return s;
   }

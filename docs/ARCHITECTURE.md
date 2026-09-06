@@ -4,6 +4,8 @@
 
 Sunucu pozisyon, hareket yetenekleri, terminal yakınlığı, bulmaca sonucu ve ilerlemede tek otoritedir. İstemci sadece sıralı input komutları üretir. Sunucuya pozisyon, animasyon, elapsed time veya `doorOpen=true` gönderilerek bunlar değiştirilemez. Avatar animasyon durumu kabul edilmiş fizik simülasyonundan türetilir.
 
+Ses/emote güncellemesinde istemci izinli bir emote başlatma isteği de gönderebilir. Sunucu isteği doğrular, süreyi hesaplar ve `state.emote` / `state.emoteLeft` alanlarını üretir. Hareket ve terminal etkileşimi emote'u iptal eder. Ayrıntılar `AUDIO_EMOTES.md` içindedir.
+
 ```mermaid
 flowchart TD
   C[Three.js istemcileri] -->|Sıralı input| N[Socket.IO odası]
